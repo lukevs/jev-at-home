@@ -1,0 +1,225 @@
+{
+  "model": "Qwen/Qwen3-4B-Instruct-2507",
+  "platform": "macOS-26.6.2-arm64-arm-64bit",
+  "versions": {
+    "mlx": "0.32.2",
+    "mlx-lm": "0.31.3",
+    "transformers": "5.17.0"
+  },
+  "repeats": 1,
+  "batch_sizes": [
+    1
+  ],
+  "source_sha256": {
+    "compare_mlx.py": "6108cf8b666103982b0891c7893fd499f1259c829d911dcfdea689ae02245150",
+    "mlx_evaluator.py": "e5f607720215c988740ed7137399976554347dead48c2c6cfcb7264875ffe466"
+  },
+  "asset_sha256": {
+    "security_incidents": "6c96b19f192d07004613afc281a31712aa7d04bd75e31a3afe2322174ade0645",
+    "agent_trace_observability": "4a3821a24366dc9830e12b481a23c96d0ab70e3c473b59551b88e8d0c4b615b3",
+    "invoice_processing": "8c2f886978a30e637d577cd0713b3cf12bb622ef7210fcc9a4be47540a6df27f",
+    "customer_service": "066f789bcc17ae906a17fc37ad4fd2f2bb1e881245aeb76b524715bc962a2493"
+  },
+  "measurements": [
+    {
+      "workflow": "security_incidents",
+      "variant": "original",
+      "batch_size": 1,
+      "repetition": 1,
+      "seconds": 11.934300710010575,
+      "cases": 5,
+      "questions": 48,
+      "reference_matches": 30,
+      "changed_answers": 0,
+      "maximum_probability_drift": 0
+    },
+    {
+      "workflow": "security_incidents",
+      "variant": "both",
+      "batch_size": 1,
+      "repetition": 1,
+      "seconds": 11.09088316798443,
+      "cases": 5,
+      "questions": 48,
+      "reference_matches": 30,
+      "changed_answers": 0,
+      "maximum_probability_drift": 0
+    },
+    {
+      "workflow": "agent_trace_observability",
+      "variant": "original",
+      "batch_size": 1,
+      "repetition": 1,
+      "seconds": 18.559358997968957,
+      "cases": 5,
+      "questions": 52,
+      "reference_matches": 35,
+      "changed_answers": 0,
+      "maximum_probability_drift": 0
+    },
+    {
+      "workflow": "agent_trace_observability",
+      "variant": "both",
+      "batch_size": 1,
+      "repetition": 1,
+      "seconds": 22.870871874009026,
+      "cases": 5,
+      "questions": 52,
+      "reference_matches": 35,
+      "changed_answers": 0,
+      "maximum_probability_drift": 0
+    },
+    {
+      "workflow": "invoice_processing",
+      "variant": "original",
+      "batch_size": 1,
+      "repetition": 1,
+      "seconds": 112.28010266600177,
+      "cases": 5,
+      "questions": 184,
+      "reference_matches": 136,
+      "changed_answers": 0,
+      "maximum_probability_drift": 0
+    },
+    {
+      "workflow": "invoice_processing",
+      "variant": "both",
+      "batch_size": 1,
+      "repetition": 1,
+      "seconds": 124.89374537597178,
+      "cases": 5,
+      "questions": 184,
+      "reference_matches": 136,
+      "changed_answers": 0,
+      "maximum_probability_drift": 0
+    },
+    {
+      "workflow": "customer_service",
+      "variant": "original",
+      "batch_size": 1,
+      "repetition": 1,
+      "seconds": 10.635563458956312,
+      "cases": 5,
+      "questions": 92,
+      "reference_matches": 76,
+      "changed_answers": 0,
+      "maximum_probability_drift": 0
+    },
+    {
+      "workflow": "customer_service",
+      "variant": "both",
+      "batch_size": 1,
+      "repetition": 1,
+      "seconds": 8.31466308204108,
+      "cases": 5,
+      "questions": 92,
+      "reference_matches": 76,
+      "changed_answers": 0,
+      "maximum_probability_drift": 0
+    }
+  ],
+  "prompt_analysis": [
+    {
+      "workflow": "security_incidents",
+      "questions": 48,
+      "prefix_tokens": 16893,
+      "suffix_tokens": 3160,
+      "additional_shared_tokens": 18,
+      "padded_tokens": {
+        "1": {
+          "original": 3160,
+          "bucketed": 3160
+        },
+        "2": {
+          "original": 3275,
+          "bucketed": 3197
+        },
+        "4": {
+          "original": 3427,
+          "bucketed": 3327
+        },
+        "8": {
+          "original": 3467,
+          "bucketed": 3387
+        }
+      }
+    },
+    {
+      "workflow": "agent_trace_observability",
+      "questions": 52,
+      "prefix_tokens": 28371,
+      "suffix_tokens": 5648,
+      "additional_shared_tokens": 0,
+      "padded_tokens": {
+        "1": {
+          "original": 5648,
+          "bucketed": 5648
+        },
+        "2": {
+          "original": 6534,
+          "bucketed": 6384
+        },
+        "4": {
+          "original": 6970,
+          "bucketed": 6748
+        },
+        "8": {
+          "original": 7488,
+          "bucketed": 7488
+        }
+      }
+    },
+    {
+      "workflow": "invoice_processing",
+      "questions": 184,
+      "prefix_tokens": 37259,
+      "suffix_tokens": 93629,
+      "additional_shared_tokens": 1857,
+      "padded_tokens": {
+        "1": {
+          "original": 93629,
+          "bucketed": 93629
+        },
+        "2": {
+          "original": 123320,
+          "bucketed": 95288
+        },
+        "4": {
+          "original": 170074,
+          "bucketed": 97119
+        },
+        "8": {
+          "original": 212890,
+          "bucketed": 99687
+        }
+      }
+    },
+    {
+      "workflow": "customer_service",
+      "questions": 92,
+      "prefix_tokens": 4036,
+      "suffix_tokens": 8760,
+      "additional_shared_tokens": 124,
+      "padded_tokens": {
+        "1": {
+          "original": 8760,
+          "bucketed": 8760
+        },
+        "2": {
+          "original": 10144,
+          "bucketed": 9023
+        },
+        "4": {
+          "original": 11992,
+          "bucketed": 10747
+        },
+        "8": {
+          "original": 14479,
+          "bucketed": 12035
+        }
+      }
+    }
+  ],
+  "profiles": [],
+  "note": "Single-pass correctness validation, not a speedup estimate. Timings were variable with background workloads. Prompt token counts are aggregated by workflow; measurements are unchanged from the benchmark output."
+}

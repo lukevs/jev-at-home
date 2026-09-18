@@ -246,6 +246,15 @@ probabilities to reach the CPU; model loading and warm-up are excluded.
 
 ### Check MLX optimizations independently
 
+A subsequent batch-size-one validation covered all 20 cases / 376 questions:
+the final MLX implementation matched the original-order/full-vocabulary MLX
+control exactly on every answer and probability (277/376 reference matches).
+This single-pass check was slower overall under variable background load; it
+does not establish an additional latency improvement. Batch size one remains
+the default. See the [validation measurements](benchmarks/m5-max-mlx-validation.json).
+The invoice token analysis reduces padded suffix work at batch size eight from
+212,890 to 99,687 tokens; this is a work reduction, not a measured speedup.
+
 The MLX ablation benchmark compares original-order/full-vocabulary inference
 against candidate-only projection, length/token-aware batching, or both. All
 variants share one loaded model and identical prompts. It records reference
