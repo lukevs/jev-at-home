@@ -3,7 +3,11 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from jev_at_home.schemas import BoolQuestionInput, EvaluationRequest
+from jev_at_home.schemas import (
+    BoolQuestionInput,
+    EvaluationRequest,
+    ScoreQuestionInput,
+)
 
 
 def test_bool_question_requires_true_and_false() -> None:
@@ -48,3 +52,22 @@ def test_request_parses_json_boolean_criteria_as_booleans() -> None:
     question = request.questions["is_outage"]
     assert isinstance(question, BoolQuestionInput)
     assert set(question.criteria) == {True, False}
+
+
+def test_request_preserves_ordered_score_criteria() -> None:
+    request = EvaluationRequest.model_validate(
+        {
+            "state": "The service is slow",
+            "questions": {
+                "severity": {
+                    "type": "score",
+                    "instructions": "How severe is the slowdown?",
+                    "criteria": ["Minor", "Moderate", "Severe"],
+                }
+            },
+        }
+    )
+
+    question = request.questions["severity"]
+    assert isinstance(question, ScoreQuestionInput)
+    assert question.criteria == ["Minor", "Moderate", "Severe"]
