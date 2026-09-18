@@ -106,11 +106,9 @@ uv run jev-at-home typesafe-eval \
 The runner downloads the public viewer assets from
 [`evals.typesafe.ai`](https://evals.typesafe.ai/), converts Noul, Choice, and
 Score questions to this project's boolean, enum, and score schemas, and reports
-question-level agreement with the published two-model consensus. Score agreement
-uses the level with the greatest probability. `--batch-size` limits how many
-question suffixes share each transformer pass so large states fit in local
-memory. The shared state is prefilled once per workflow node and reused across
-those suffix batches.
+question-level agreement with the published two-model consensus.
+
+## Data
 
 Input supports string enums, booleans, and ordered scores. Each question has an explicit
 type discriminator:
@@ -159,6 +157,26 @@ numbers. The result also includes the complete level distribution and legend.
   ]
 }
 ```
+
+### Qwen3-4B public example results
+
+The Qwen results below were measured with `Qwen/Qwen3-4B-Instruct-2507`, MPS,
+and the default batch size of eight on an Apple M5 Max. A case is one complete
+workflow example and can contain many questions. Inference time includes model
+calls only; it excludes model loading and downloading the eval assets.
+
+| Workflow | Public cases | Question matches | Reference agreement | Inference/case |
+| --- | ---: | ---: | ---: | ---: |
+| Security incidents | 5 | 30/48 | 62.5% | 3.17 s |
+| Agent trace observability | 5 | 34/52 | 65.4% | 4.92 s |
+| Invoice processing | 5 | 137/184 | 74.5% | 38.95 s |
+| Customer service | 5 | 75/92 | 81.5% | 1.85 s |
+| **Overall** | **20** | **276/376** | **73.4%** | **12.22 s** |
+
+These results measure 376 question instances inside the 20 public showcased
+cases. A match means Qwen's top answer agrees with TypeSafe's separate published
+reference consensus. TypeSafe does not publish the complete cases or
+executable policy harness.
 
 ## Sources
 
