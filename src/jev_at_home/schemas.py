@@ -2,12 +2,21 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import Enum, StrEnum
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue, field_validator
 
 Device = Literal["cpu", "mps", "cuda"]
+
+
+class TypeSafeWorkflow(StrEnum):
+    """A workflow with public examples on TypeSafe's eval site."""
+
+    SECURITY_INCIDENTS = "security_incidents"
+    AGENT_TRACE_OBSERVABILITY = "agent_trace_observability"
+    INVOICE_PROCESSING = "invoice_processing"
+    CUSTOMER_SERVICE = "customer_service"
 
 
 class Question[T: Enum | bool](BaseModel):
@@ -109,3 +118,25 @@ class EvaluationResult(BaseModel):
 
     model: str
     answers: dict[str, Answer]
+
+
+class TypeSafeEvalResult(BaseModel):
+    """Question-level agreement for one public TypeSafe workflow sample."""
+
+    model_config = ConfigDict(frozen=True)
+
+    workflow: TypeSafeWorkflow
+    declared_case_count: int
+    published_case_count: int
+    evaluated_case_count: int
+    question_count: int
+    correct_count: int
+    inference_seconds: float
+
+    @property
+    def agreement(self) -> float:
+        """Return the fraction of answers matching the reference consensus."""
+
+        if not self.question_count:
+            return 0.0
+        return self.correct_count / self.question_count

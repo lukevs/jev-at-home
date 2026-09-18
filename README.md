@@ -84,6 +84,38 @@ uv run jev-at-home judge examples/support.json \
   --device mps
 ```
 
+## Run TypeSafe's public workflow examples
+
+TypeSafe's eval viewer publishes five showcased cases for each of its four
+workflows. Run all of those examples against the local model with:
+
+```bash
+uv run jev-at-home typesafe-eval --device mps
+```
+
+Run one workflow or use fewer cases while iterating:
+
+```bash
+uv run jev-at-home typesafe-eval \
+  --workflow security_incidents \
+  --limit 1 \
+  --batch-size 4 \
+  --device mps
+```
+
+The runner downloads the public viewer assets from
+[`evals.typesafe.ai`](https://evals.typesafe.ai/), converts Noul, Choice, and
+Score questions to this project's boolean, enum, and score schemas, and reports
+question-level agreement with the published two-model consensus. Score agreement
+uses the level with the greatest probability. `--batch-size` limits how many
+questions share each transformer pass so large states fit in local memory.
+
+This is not the action-level accuracy shown on TypeSafe's site. The site declares
+117–240 cases per workflow but publishes only five examples, and it does not
+publish the executable policy harness that turns question distributions into
+workflow actions. The CLI labels the available case counts and reports only the
+comparison that can be reproduced from the public data.
+
 Input supports string enums, booleans, and ordered scores. Each question has an explicit
 type discriminator:
 
