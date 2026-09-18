@@ -6,8 +6,8 @@ with **one shared-prefix prefill and bounded suffix batches**, restricts each
 row's next-token logits to single-token labels (`A`, `B`, ...), applies softmax,
 and maps the distribution back to the caller's enum.
 
-The repo is meant to show that much of the shape and latency advantage can 
-be demonstrated by replacing autoregressive structured generation with 
+The repo is meant to show that some of the shape and latency advantage of Jev can 
+be achieved by replacing autoregressive structured generation with 
 batched classification over a closed answer space.
 
 This is _not_ a reimplementation of TypeSafe's Jev model. TypeSafe publicly says
