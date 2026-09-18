@@ -110,12 +110,6 @@ question-level agreement with the published two-model consensus. Score agreement
 uses the level with the greatest probability. `--batch-size` limits how many
 questions share each transformer pass so large states fit in local memory.
 
-This is not the action-level accuracy shown on TypeSafe's site. The site declares
-117–240 cases per workflow but publishes only five examples, and it does not
-publish the executable policy harness that turns question distributions into
-workflow actions. The CLI labels the available case counts and reports only the
-comparison that can be reproduced from the public data.
-
 Input supports string enums, booleans, and ordered scores. Each question has an explicit
 type discriminator:
 
@@ -164,7 +158,7 @@ numbers. The result also includes the complete level distribution and legend.
 }
 ```
 
-## Design approach
+## Sources
 
 The key sources for the experiment are TypeSafe's
 [Jev announcement](https://typesafe.ai/blog/introducing-system-one-models-and-jev) and
