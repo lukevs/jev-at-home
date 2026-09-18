@@ -12,7 +12,7 @@ from jev_at_home.schemas import EvaluationRequest, ScoreAnswer
 
 class FakeTokenizer:
     pad_token_id = 0
-    padding_side = "right"
+    padding_side = "left"
 
     def apply_chat_template(
         self, messages, *, tokenize, add_generation_prompt, enable_thinking
@@ -35,8 +35,8 @@ class FakeTokenizer:
         input_ids = torch.zeros((len(rows), width), dtype=torch.long)
         attention_mask = torch.zeros((len(rows), width), dtype=torch.long)
         for index, row in enumerate(rows):
-            input_ids[index, : len(row)] = torch.tensor(row)
-            attention_mask[index, : len(row)] = 1
+            input_ids[index, -len(row) :] = torch.tensor(row)
+            attention_mask[index, -len(row) :] = 1
         return {"input_ids": input_ids, "attention_mask": attention_mask}
 
 
@@ -49,10 +49,11 @@ class FakeModel:
     def __init__(self) -> None:
         self.calls = 0
 
-    def __call__(self, *, input_ids, attention_mask):
+    def __call__(self, *, input_ids, attention_mask, logits_to_keep):
         self.calls += 1
-        batch, width = input_ids.shape
-        logits = torch.zeros((batch, width, 128))
+        assert logits_to_keep == 1
+        batch, _ = input_ids.shape
+        logits = torch.zeros((batch, 1, 128))
         logits[0, :, ord("A")] = 1.0
         logits[0, :, ord("B")] = 3.0
         logits[1, :, ord("A")] = 4.0

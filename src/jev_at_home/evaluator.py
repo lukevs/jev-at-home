@@ -66,7 +66,7 @@ class TransformersEvaluator:
         tokenizer = AutoTokenizer.from_pretrained(model_name)
         if tokenizer.pad_token_id is None:
             tokenizer.pad_token = tokenizer.eos_token
-        tokenizer.padding_side = "right"
+        tokenizer.padding_side = "left"
 
         model = AutoModelForCausalLM.from_pretrained(model_name)
         model.to(selected_device)
@@ -105,11 +105,9 @@ class TransformersEvaluator:
         model_inputs = self._tokenize_questions(questions)
 
         with torch.inference_mode():
-            logits = self.model(**model_inputs).logits
+            logits = self.model(**model_inputs, logits_to_keep=1).logits
 
-        last_token_indices = model_inputs["attention_mask"].sum(dim=1) - 1
-        row_indices = torch.arange(len(questions), device=self.device)
-        return logits[row_indices, last_token_indices]
+        return logits[:, -1, :]
 
     def _tokenize_questions(
         self, questions: list[_ModelQuestion]
