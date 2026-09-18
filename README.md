@@ -18,11 +18,11 @@ reproduce those pieces.
 ## Example run
 
 ```console
-$ uv run jev-at-home judge examples/support.json --device mps
+$ uv run --extra mlx jev-at-home judge examples/support.json --backend mlx
 
-Backend: transformers
+Backend: mlx
 Model: Qwen/Qwen3-4B-Instruct-2507
-Inference: 194.6 ms · 3 questions · 1 batch
+Inference: 131.6 ms · 3 questions · 1 batch
 State: {"customer_tier": "business", "message": "Help! My payouts have been failing for three days."}
 
 Which team should handle this?
@@ -85,20 +85,17 @@ remains available on CPU, MPS, and CUDA. Both validate each answer label as an
 exact single-token continuation. Prompt token IDs are computed once and reused
 for that validation and inference.
 
-MLX groups similarly sized suffixes within the requested batch size and a
-2,048-padded-suffix-token budget. Longer individual questions run alone; they
-are never truncated. It right-pads each batch and reads each question's actual
-last token, so padding cannot affect earlier tokens under causal attention.
-Answers and choices are restored to the caller's original order.
+The fastest measured setup on Apple Silicon uses MLX with batch size one and
+the original BF16 weights. Questions run in their original order. MLX
+right-pads suffix batches and reads each question's actual last token, so
+padding cannot affect earlier tokens under causal attention. Each batch width
+gets one prefix cache; suffix storage is reused after resetting its cursor.
+Only the last hidden state per question is projected into vocabulary logits,
+then the declared label tokens are selected and normalized.
 
-The backend retains the original prefix and only one active batch cache.
-Suffix storage is reused after resetting its cursor; a new prefix replica is
-allocated only when the batch width changes. Only the last hidden state per
-question is projected, using just the requested label-token rows of the output
-weights instead of the full vocabulary. Weights remain unquantized. The backend
-also explicitly uses Qwen's configured query/key normalization epsilon.
+The backend explicitly uses Qwen's configured query/key normalization epsilon.
 Floating-point results can still differ between runtimes or batch shapes and
-change close decisions.
+change close decisions. No quantization or length-based reordering is used.
 
 Or use standard input:
 
@@ -195,8 +192,10 @@ optional MLX backend, and batch size one on an Apple M5 Max. Times are medians
 of two runs per workflow. A case is one complete workflow example and can
 contain many questions. Inference time includes prompt preparation and model
 execution; it excludes loading and downloading eval assets.
-These are the initial MLX-backend measurements, before the subsequent
-candidate-projection and length-bucketing changes described below.
+These measurements correspond to the retained, best-measured MLX implementation:
+original-order batches, full-vocabulary final-token projection, and reusable
+prefix caches. Later projection and length-bucketing experiments were removed
+after they failed to improve the default batch-size-one results.
 
 | Workflow | Public cases | Question matches | Reference agreement | Inference/case | Inference/question |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -244,38 +243,6 @@ the sum of per-workflow median times. Add `--workflow invoice_processing --limit
 for a smaller experiment. The timer includes prompt preparation and waits for
 probabilities to reach the CPU; model loading and warm-up are excluded.
 
-### Check MLX optimizations independently
-
-A subsequent batch-size-one validation covered all 20 cases / 376 questions:
-the final MLX implementation matched the original-order/full-vocabulary MLX
-control exactly on every answer and probability (277/376 reference matches).
-This single-pass check was slower overall under variable background load; it
-does not establish an additional latency improvement. Batch size one remains
-the default. See the [validation measurements](benchmarks/m5-max-mlx-validation.json).
-The invoice token analysis reduces padded suffix work at batch size eight from
-212,890 to 99,687 tokens; this is a work reduction, not a measured speedup.
-
-The MLX ablation benchmark compares original-order/full-vocabulary inference
-against candidate-only projection, length/token-aware batching, or both. All
-variants share one loaded model and identical prompts. It records reference
-agreement, changed top answers, maximum probability drift against batch size
-one, padding counts, source/asset hashes, and raw timings. Successive repetitions
-reverse the execution order.
-
-```bash
-uv run --extra mlx python benchmarks/compare_mlx.py \
-  --workflow invoice_processing --limit 1 \
-  --batch-sizes 1,4 --variants original,both --repeats 2 \
-  --output /tmp/jev-mlx-optimizations.json
-```
-
-Omit `--workflow` and `--limit` to cover all 20 public cases. Use
-`--variants original,projection,batching,both` to isolate the changes.
-`--asset-dir` accepts previously downloaded `<workflow>-cases.js` files for an
-offline run. `--profile` separately instruments the first request in each
-workflow, including compilation, prefix/suffix processing, attention, MLPs,
-and output projection. These synchronized diagnostic timings overlap and
-perturb execution; they are not used for the performance comparison.
 
 ## Sources
 

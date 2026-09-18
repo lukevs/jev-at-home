@@ -93,66 +93,8 @@ def test_mlx_matches_independent_torch_prompts(
             ]
         ).numpy()
     with mx.stream(getattr(mx, device)):
-        actual = np.array(evaluator._predict_choice_logits(questions, batch_size))
-    expected = np.array(
-        [
-            row[list(question.label_token_ids)]
-            for row, question in zip(expected, questions, strict=True)
-        ]
-    )
+        actual = np.array(evaluator._predict_next_token_logits(questions, batch_size))
     # CPU verifies the equations strictly; Metal's float32 kernels round
     # differently (observed maximum error below 3e-4 for these same weights).
     tolerance = 1e-5 if device == "cpu" else 5e-4
     np.testing.assert_allclose(actual, expected, atol=tolerance, rtol=1e-4)
-
-
-def test_plan_batches_limits_padding_and_restores_original_indexes() -> None:
-    evaluator = object.__new__(MLXEvaluator)
-    suffixes = [[1] * length for length in (1, 1000, 10, 900, 3000, 800)]
-    batches = evaluator._plan_batches(suffixes, batch_size=3)
-    assert batches == [[4], [1], [5, 3], [0, 2]]
-    assert sorted(index for batch in batches for index in batch) == list(range(6))
-    for batch in batches:
-        assert len(batch) <= 3
-        assert (
-            len(batch) == 1
-            or len(batch) * max(len(suffixes[index]) for index in batch) <= 2048
-        )
-
-
-def test_project_choices_matches_full_vocabulary_in_bfloat16() -> None:
-    nn = import_module("mlx.nn")
-    head = nn.Linear(16, 128, bias=False)
-    head.set_dtype(mx.bfloat16)
-    evaluator = object.__new__(MLXEvaluator)
-    evaluator.model = SimpleNamespace(
-        args=SimpleNamespace(tie_word_embeddings=False), lm_head=head
-    )
-    hidden = mx.random.normal((3, 16)).astype(mx.bfloat16)
-    tokens = [9, 1, 70]
-    expected = head(hidden)[:, mx.array(tokens)].astype(mx.float32)
-    actual = evaluator._project_choices(hidden, tokens).astype(mx.float32)
-    np.testing.assert_allclose(
-        np.array(actual), np.array(expected), atol=0.01, rtol=0.01
-    )
-
-
-@pytest.mark.parametrize(
-    ("lengths", "batch_size", "expected"),
-    [
-        ([], 4, []),
-        ([1, 2, 100], 2, [[2], [0, 1]]),
-        ([1024, 1024], 8, [[0, 1]]),
-        ([1024, 1025], 8, [[1], [0]]),
-        ([3000, 3000], 8, [[1], [0]]),
-        ([2, 1, 3], 1, [[0], [1], [2]]),
-    ],
-)
-def test_plan_batches_handles_partial_and_oversized_batches(
-    lengths: list[int], batch_size: int, expected: list[list[int]]
-) -> None:
-    evaluator = object.__new__(MLXEvaluator)
-    assert (
-        evaluator._plan_batches([[1] * length for length in lengths], batch_size)
-        == expected
-    )
