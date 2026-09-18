@@ -9,9 +9,11 @@ back to the caller's enum.
 This is not a reimplementation of TypeSafe's Jev model. TypeSafe publicly says
 Jev uses a new architecture, parallel sampler, and Reinforcement Learning for
 Calibrated Decisions, but has not published enough implementation detail to
-reproduce those pieces. This repo isolates the simpler hypothesis: much of the
-shape and latency advantage can be demonstrated by replacing autoregressive
-structured generation with batched classification over a closed answer space.
+reproduce those pieces.
+
+This repo is meant to show that much of the shape and latency advantage can 
+be demonstrated by replacing autoregressive structured generation with 
+batched classification over a closed answer space.
 
 ## Example run
 
