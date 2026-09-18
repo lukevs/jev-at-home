@@ -23,23 +23,24 @@ class FakeEvaluator:
         self.calls += 1
         answers = {}
         for name, question in request.questions.items():
-            if isinstance(question, BoolQuestionInput):
-                answers[name] = ChoiceAnswer[bool](
-                    choice=True,
-                    probabilities={True: 0.9, False: 0.1},
-                )
-            elif isinstance(question, EnumQuestionInput):
-                choice_type = Enum("Choice", {"BLUE": "blue", "RED": "red"})
-                answers[name] = ChoiceAnswer[choice_type](
-                    choice=choice_type.BLUE,
-                    probabilities={choice_type.BLUE: 0.8, choice_type.RED: 0.2},
-                )
-            elif isinstance(question, ScoreQuestionInput):
-                answers[name] = ScoreAnswer(
-                    score=1.8,
-                    legend={0: "Low", 1: "Medium", 2: "High"},
-                    probabilities={0: 0.05, 1: 0.1, 2: 0.85},
-                )
+            match question:
+                case BoolQuestionInput():
+                    answers[name] = ChoiceAnswer[bool](
+                        choice=True,
+                        probabilities={True: 0.9, False: 0.1},
+                    )
+                case EnumQuestionInput():
+                    choice_type = Enum("Choice", {"BLUE": "blue", "RED": "red"})
+                    answers[name] = ChoiceAnswer[choice_type](
+                        choice=choice_type.BLUE,
+                        probabilities={choice_type.BLUE: 0.8, choice_type.RED: 0.2},
+                    )
+                case ScoreQuestionInput():
+                    answers[name] = ScoreAnswer(
+                        score=1.8,
+                        legend={0: "Low", 1: "Medium", 2: "High"},
+                        probabilities={0: 0.05, 1: 0.1, 2: 0.85},
+                    )
         return EvaluationResult(model="fake", answers=answers)
 
 
