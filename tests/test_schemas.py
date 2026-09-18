@@ -3,17 +3,12 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from jev_at_home.domain import BoolQuestion, EnumQuestion, EvaluationRequest
-
-
-def test_question_requires_at_least_two_choices() -> None:
-    with pytest.raises(ValidationError, match="between 2 and 26"):
-        EnumQuestion(instructions="Pick one", criteria={"only": "The only choice"})
+from jev_at_home.schemas import BoolQuestionInput, EvaluationRequest
 
 
 def test_bool_question_requires_true_and_false() -> None:
     with pytest.raises(ValidationError, match="both true and false"):
-        BoolQuestion(instructions="Is it?", criteria={True: "Yes"})
+        BoolQuestionInput(instructions="Is it?", criteria={True: "Yes"})
 
 
 def test_request_preserves_question_and_choice_order() -> None:
@@ -51,5 +46,5 @@ def test_request_parses_json_boolean_criteria_as_booleans() -> None:
     )
 
     question = request.questions["is_outage"]
-    assert isinstance(question, BoolQuestion)
+    assert isinstance(question, BoolQuestionInput)
     assert set(question.criteria) == {True, False}

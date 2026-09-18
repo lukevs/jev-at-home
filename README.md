@@ -90,11 +90,6 @@ A boolean question maps its key directly to `true` or `false` in the result:
 }
 ```
 
-Internally, `Question[T]`, `PreparedQuestion[T]`, and `ChoiceAnswer[T]` use
-Python 3.12's inline generic syntax with `T` bound to `str | bool`. Boolean
-choices remain booleans in Python and serialize as JSON booleans; they are not
-the strings `"true"` and `"false"`.
-
 ## Design approach
 
 The key sources for the experiment are TypeSafe's

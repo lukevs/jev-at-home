@@ -17,11 +17,18 @@ dependencies = [
 [dependency-groups]
 dev = [
     "pytest>=8.3",
+    "ruff>=0.14",
 ]
 
 [project.scripts]
-jev-at-home = "jev_at_home:main"
+jev-at-home = "jev_at_home:run"
 
 [build-system]
 requires = ["uv_build>=0.12.3,<0.13.0"]
 build-backend = "uv_build"
+
+[tool.ruff]
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["B", "E", "F", "I", "SIM", "UP"]

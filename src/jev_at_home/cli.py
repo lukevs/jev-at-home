@@ -9,9 +9,8 @@ from typing import Annotated
 import typer
 from pydantic import ValidationError
 
-from jev_at_home.domain import EvaluationRequest
 from jev_at_home.evaluator import TransformersChoiceEvaluator
-
+from jev_at_home.schemas import Device, EvaluationRequest
 
 DEFAULT_MODEL = "HuggingFaceTB/SmolLM2-360M-Instruct"
 
@@ -21,19 +20,8 @@ app = typer.Typer(
 )
 
 
-def read_request(path: Path | None) -> EvaluationRequest:
-    """Parse an evaluation request from a file, or from standard input."""
-
-    if path is None:
-        if sys.stdin.isatty():
-            raise typer.BadParameter("provide REQUEST.json or pipe JSON on stdin")
-        raw = sys.stdin.read()
-    else:
-        raw = path.read_text()
-    try:
-        return EvaluationRequest.model_validate_json(raw)
-    except ValidationError as error:
-        raise typer.BadParameter(str(error)) from error
+def run() -> None:
+    app()
 
 
 @app.command()
@@ -51,7 +39,7 @@ def judge(
         str, typer.Option(help="Hugging Face causal language model to load.")
     ] = DEFAULT_MODEL,
     device: Annotated[
-        str | None, typer.Option(help="Inference device: cpu, mps, or cuda.")
+        Device | None, typer.Option(help="Inference device: cpu, mps, or cuda.")
     ] = None,
     temperature: Annotated[
         float,
@@ -63,14 +51,14 @@ def judge(
 ) -> None:
     """Judge all questions in REQUEST_FILE as a single model batch."""
 
-    request = read_request(request_file)
-    evaluator = TransformersChoiceEvaluator.from_pretrained(model, device)
+    request = _load_request(request_file)
+    evaluator = TransformersChoiceEvaluator.load(model, device)
     result = evaluator.evaluate(request, temperature=temperature)
     typer.echo(result.model_dump_json(indent=2))
 
 
-@app.command()
-def example() -> None:
+@app.command("example")
+def show_example() -> None:
     """Print an example request that can be piped into `judge`."""
 
     typer.echo(
@@ -101,5 +89,16 @@ def example() -> None:
     )
 
 
-def main() -> None:
-    app()
+def _load_request(path: Path | None) -> EvaluationRequest:
+    """Return the evaluation request read from a file or standard input."""
+
+    if path is None:
+        if sys.stdin.isatty():
+            raise typer.BadParameter("provide REQUEST.json or pipe JSON on stdin")
+        raw = sys.stdin.read()
+    else:
+        raw = path.read_text()
+    try:
+        return EvaluationRequest.model_validate_json(raw)
+    except ValidationError as error:
+        raise typer.BadParameter(str(error)) from error

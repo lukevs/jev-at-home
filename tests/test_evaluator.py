@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import Enum
 
 import pytest
 import torch
 
-from jev_at_home.domain import EvaluationRequest
 from jev_at_home.evaluator import TransformersChoiceEvaluator
+from jev_at_home.schemas import EvaluationRequest
 
 
 class FakeTokenizer:
@@ -100,8 +101,12 @@ def test_all_questions_use_one_forward_pass_and_return_distributions() -> None:
     result = evaluator.evaluate(request)
 
     assert model.calls == 1
-    assert result.answers["sentiment"].choice == "negative"
-    assert result.answers["priority"].choice == "high"
+    sentiment = result.answers["sentiment"].choice
+    priority = result.answers["priority"].choice
+    assert isinstance(sentiment, Enum)
+    assert isinstance(priority, Enum)
+    assert sentiment.value == "negative"
+    assert priority.value == "high"
     assert result.answers["actionable"].choice is True
     assert set(result.answers["actionable"].probabilities) == {True, False}
     for answer in result.answers.values():
