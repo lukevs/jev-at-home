@@ -20,6 +20,7 @@ reproduce those pieces.
 ```console
 $ uv run jev-at-home judge examples/support.json --device mps
 
+Backend: transformers
 Model: Qwen/Qwen3-4B-Instruct-2507
 Inference: 194.6 ms · 3 questions · 1 batch
 State: {"customer_tier": "business", "message": "Help! My payouts have been failing for three days."}
@@ -69,6 +70,35 @@ model snapshots under `~/.cache/huggingface/hub` for future runs.
 uv sync
 uv run jev-at-home judge examples/support.json
 ```
+
+On Apple Silicon, an optional MLX backend runs the same Qwen3 weights with
+Metal kernels and reuses the prefix cache between suffix batches:
+
+```bash
+uv run --extra mlx jev-at-home judge examples/support.json --backend mlx
+uv run --extra mlx jev-at-home typesafe-eval --backend mlx --batch-size 1
+```
+
+This backend currently supports Qwen3 and keeps the original weight precision;
+it does not quantize or change the prompts. The default Transformers backend
+remains available on CPU, MPS, and CUDA. Both validate each answer label as an
+exact single-token continuation. Prompt token IDs are computed once and reused
+for that validation and inference.
+
+MLX groups similarly sized suffixes within the requested batch size and a
+2,048-padded-suffix-token budget. Longer individual questions run alone; they
+are never truncated. It right-pads each batch and reads each question's actual
+last token, so padding cannot affect earlier tokens under causal attention.
+Answers and choices are restored to the caller's original order.
+
+The backend retains the original prefix and only one active batch cache.
+Suffix storage is reused after resetting its cursor; a new prefix replica is
+allocated only when the batch width changes. Only the last hidden state per
+question is projected, using just the requested label-token rows of the output
+weights instead of the full vocabulary. Weights remain unquantized. The backend
+also explicitly uses Qwen's configured query/key normalization epsilon.
+Floating-point results can still differ between runtimes or batch shapes and
+change close decisions.
 
 Or use standard input:
 
@@ -160,23 +190,83 @@ numbers. The result also includes the complete level distribution and legend.
 
 ### Qwen3-4B public example results
 
-The Qwen results below were measured with `Qwen/Qwen3-4B-Instruct-2507`, MPS,
-and the default batch size of one on an Apple M5 Max. A case is one complete
-workflow example and can contain many questions. Inference time includes model
-calls only; it excludes model loading and downloading the eval assets.
+The Qwen results below were measured with `Qwen/Qwen3-4B-Instruct-2507`, the
+optional MLX backend, and batch size one on an Apple M5 Max. Times are medians
+of two runs per workflow. A case is one complete workflow example and can
+contain many questions. Inference time includes prompt preparation and model
+execution; it excludes loading and downloading eval assets.
+These are the initial MLX-backend measurements, before the subsequent
+candidate-projection and length-bucketing changes described below.
 
 | Workflow | Public cases | Question matches | Reference agreement | Inference/case | Inference/question |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Security incidents | 5 | 30/48 | 62.5% | 1.34 s | 139.8 ms |
-| Agent trace observability | 5 | 34/52 | 65.4% | 2.04 s | 195.8 ms |
-| Invoice processing | 5 | 137/184 | 74.5% | 14.51 s | 394.4 ms |
-| Customer service | 5 | 75/92 | 81.5% | 1.32 s | 71.5 ms |
-| **Overall** | **20** | **276/376** | **73.4%** | **4.80 s** | **255.4 ms** |
+| Security incidents | 5 | 30/48 | 62.5% | 2.73 s | 284.7 ms |
+| Agent trace observability | 5 | 35/52 | 67.3% | 4.30 s | 413.7 ms |
+| Invoice processing | 5 | 136/184 | 73.9% | 21.43 s | 582.4 ms |
+| Customer service | 5 | 76/92 | 82.6% | 2.01 s | 109.3 ms |
+| **Overall** | **20** | **277/376** | **73.7%** | **7.62 s** | **405.3 ms** |
 
 These results measure 376 question instances inside the 20 public showcased
 cases. A match means Qwen's top answer agrees with TypeSafe's separate published
 reference consensus. TypeSafe does not publish the complete cases or
 executable policy harness.
+
+### Measured backend comparison
+
+In the same process, using the same BF16 weights, prompts, batch size one, and
+all 20 public cases, MLX was **1.38× faster overall (27% less inference time)**.
+Each workflow ran twice per backend, in Transformers/MLX then MLX/Transformers
+order. Both runtimes used the tokenization improvement described above.
+
+| Backend | Reference agreement | Inference/case | Inference/question |
+| --- | ---: | ---: | ---: |
+| Transformers / MPS | 276/376 (73.4%) | 10.50 s | 558.7 ms |
+| MLX | 277/376 (73.7%) | 7.62 s | 405.3 ms |
+
+Individual decisions differ between runtimes; this is not bit-for-bit equality.
+These are paired measurements from this run, not comparisons against historical
+timings taken under different machine conditions. Batch one remained fastest in
+the MLX invoice sweep of 1, 2, 4, and 8. The implementation uses
+[MLX-LM](https://github.com/ml-explore/mlx-lm) and retains the original weights
+without quantization. See the [raw measurements](benchmarks/m5-max-backends.json)
+for workflow timings, reference counts, and exact dependency versions.
+
+To reproduce a backend comparison on all 20 public cases, loading each model
+once, downloading each asset once, and alternating execution order:
+
+```bash
+uv run --extra mlx python benchmarks/compare_backends.py \
+  --repeats 2 --batch-size 1 --output /tmp/jev-backends.json
+```
+
+The JSON includes every timing and reference count, dependency versions, and
+the sum of per-workflow median times. Add `--workflow invoice_processing --limit 1`
+for a smaller experiment. The timer includes prompt preparation and waits for
+probabilities to reach the CPU; model loading and warm-up are excluded.
+
+### Check MLX optimizations independently
+
+The MLX ablation benchmark compares original-order/full-vocabulary inference
+against candidate-only projection, length/token-aware batching, or both. All
+variants share one loaded model and identical prompts. It records reference
+agreement, changed top answers, maximum probability drift against batch size
+one, padding counts, source/asset hashes, and raw timings. Successive repetitions
+reverse the execution order.
+
+```bash
+uv run --extra mlx python benchmarks/compare_mlx.py \
+  --workflow invoice_processing --limit 1 \
+  --batch-sizes 1,4 --variants original,both --repeats 2 \
+  --output /tmp/jev-mlx-optimizations.json
+```
+
+Omit `--workflow` and `--limit` to cover all 20 public cases. Use
+`--variants original,projection,batching,both` to isolate the changes.
+`--asset-dir` accepts previously downloaded `<workflow>-cases.js` files for an
+offline run. `--profile` separately instruments the first request in each
+workflow, including compilation, prefix/suffix processing, attention, MLPs,
+and output projection. These synchronized diagnostic timings overlap and
+perturb execution; they are not used for the performance comparison.
 
 ## Sources
 
@@ -186,4 +276,10 @@ The key sources for the experiment are TypeSafe's [Jev announcement](https://typ
 
 ```bash
 uv run pytest
+```
+
+On Apple Silicon, include the MLX numerical-parity tests with:
+
+```bash
+uv run --extra mlx pytest
 ```

@@ -1,0 +1,194 @@
+{
+  "model": "Qwen/Qwen3-4B-Instruct-2507",
+  "platform": "macOS-26.6.2-arm64-arm-64bit",
+  "versions": {
+    "torch": "2.14.0",
+    "transformers": "5.17.0",
+    "mlx": "0.32.2",
+    "mlx-lm": "0.31.3"
+  },
+  "batch_size": 1,
+  "repeats": 2,
+  "measurements": [
+    {
+      "backend": "transformers",
+      "repetition": 1,
+      "workflow": "security_incidents",
+      "declared_case_count": 240,
+      "published_case_count": 5,
+      "evaluated_case_count": 5,
+      "question_count": 48,
+      "correct_count": 30,
+      "inference_seconds": 18.546240292023867
+    },
+    {
+      "backend": "mlx",
+      "repetition": 1,
+      "workflow": "security_incidents",
+      "declared_case_count": 240,
+      "published_case_count": 5,
+      "evaluated_case_count": 5,
+      "question_count": 48,
+      "correct_count": 30,
+      "inference_seconds": 13.46395520796068
+    },
+    {
+      "backend": "mlx",
+      "repetition": 2,
+      "workflow": "security_incidents",
+      "declared_case_count": 240,
+      "published_case_count": 5,
+      "evaluated_case_count": 5,
+      "question_count": 48,
+      "correct_count": 30,
+      "inference_seconds": 13.865924000972882
+    },
+    {
+      "backend": "transformers",
+      "repetition": 2,
+      "workflow": "security_incidents",
+      "declared_case_count": 240,
+      "published_case_count": 5,
+      "evaluated_case_count": 5,
+      "question_count": 48,
+      "correct_count": 30,
+      "inference_seconds": 18.1587190409482
+    },
+    {
+      "backend": "transformers",
+      "repetition": 1,
+      "workflow": "agent_trace_observability",
+      "declared_case_count": 117,
+      "published_case_count": 5,
+      "evaluated_case_count": 5,
+      "question_count": 52,
+      "correct_count": 34,
+      "inference_seconds": 27.986786418012343
+    },
+    {
+      "backend": "mlx",
+      "repetition": 1,
+      "workflow": "agent_trace_observability",
+      "declared_case_count": 117,
+      "published_case_count": 5,
+      "evaluated_case_count": 5,
+      "question_count": 52,
+      "correct_count": 35,
+      "inference_seconds": 21.463458209007513
+    },
+    {
+      "backend": "mlx",
+      "repetition": 2,
+      "workflow": "agent_trace_observability",
+      "declared_case_count": 117,
+      "published_case_count": 5,
+      "evaluated_case_count": 5,
+      "question_count": 52,
+      "correct_count": 35,
+      "inference_seconds": 21.565214374946663
+    },
+    {
+      "backend": "transformers",
+      "repetition": 2,
+      "workflow": "agent_trace_observability",
+      "declared_case_count": 117,
+      "published_case_count": 5,
+      "evaluated_case_count": 5,
+      "question_count": 52,
+      "correct_count": 34,
+      "inference_seconds": 26.782520961016417
+    },
+    {
+      "backend": "transformers",
+      "repetition": 1,
+      "workflow": "invoice_processing",
+      "declared_case_count": 150,
+      "published_case_count": 5,
+      "evaluated_case_count": 5,
+      "question_count": 184,
+      "correct_count": 137,
+      "inference_seconds": 148.28651712299325
+    },
+    {
+      "backend": "mlx",
+      "repetition": 1,
+      "workflow": "invoice_processing",
+      "declared_case_count": 150,
+      "published_case_count": 5,
+      "evaluated_case_count": 5,
+      "question_count": 184,
+      "correct_count": 136,
+      "inference_seconds": 110.4956990829669
+    },
+    {
+      "backend": "mlx",
+      "repetition": 2,
+      "workflow": "invoice_processing",
+      "declared_case_count": 150,
+      "published_case_count": 5,
+      "evaluated_case_count": 5,
+      "question_count": 184,
+      "correct_count": 136,
+      "inference_seconds": 103.84125245799078
+    },
+    {
+      "backend": "transformers",
+      "repetition": 2,
+      "workflow": "invoice_processing",
+      "declared_case_count": 150,
+      "published_case_count": 5,
+      "evaluated_case_count": 5,
+      "question_count": 184,
+      "correct_count": 137,
+      "inference_seconds": 159.23525783303194
+    },
+    {
+      "backend": "transformers",
+      "repetition": 1,
+      "workflow": "customer_service",
+      "declared_case_count": 204,
+      "published_case_count": 5,
+      "evaluated_case_count": 5,
+      "question_count": 92,
+      "correct_count": 75,
+      "inference_seconds": 10.38489625096554
+    },
+    {
+      "backend": "mlx",
+      "repetition": 1,
+      "workflow": "customer_service",
+      "declared_case_count": 204,
+      "published_case_count": 5,
+      "evaluated_case_count": 5,
+      "question_count": 92,
+      "correct_count": 76,
+      "inference_seconds": 11.201340747065842
+    },
+    {
+      "backend": "mlx",
+      "repetition": 2,
+      "workflow": "customer_service",
+      "declared_case_count": 204,
+      "published_case_count": 5,
+      "evaluated_case_count": 5,
+      "question_count": 92,
+      "correct_count": 76,
+      "inference_seconds": 8.908532583911438
+    },
+    {
+      "backend": "transformers",
+      "repetition": 2,
+      "workflow": "customer_service",
+      "declared_case_count": 204,
+      "published_case_count": 5,
+      "evaluated_case_count": 5,
+      "question_count": 92,
+      "correct_count": 75,
+      "inference_seconds": 10.727555999008473
+    }
+  ],
+  "median_suite_seconds": {
+    "transformers": 210.054246959,
+    "mlx": 152.40268833241134
+  }
+}
