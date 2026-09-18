@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import time
-from collections.abc import Callable, Iterator
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
 from urllib.request import Request, urlopen
@@ -179,15 +179,18 @@ def _evaluate_suite(
     inference_seconds = 0.0
 
     for batch in suite.batches:
-        for request, expected_answers in _split_batch(batch, batch_size):
-            inference_started_at = time.perf_counter()
-            result = evaluator.evaluate(request, temperature=temperature)
-            inference_seconds += time.perf_counter() - inference_started_at
+        inference_started_at = time.perf_counter()
+        result = evaluator.evaluate(
+            batch.request,
+            temperature=temperature,
+            batch_size=batch_size,
+        )
+        inference_seconds += time.perf_counter() - inference_started_at
 
-            for question_id, expected_answer in expected_answers.items():
-                question_count += 1
-                actual_answer = _read_answer_value(result.answers[question_id])
-                correct_count += actual_answer == expected_answer
+        for question_id, expected_answer in batch.expected_answers.items():
+            question_count += 1
+            actual_answer = _read_answer_value(result.answers[question_id])
+            correct_count += actual_answer == expected_answer
 
     return TypeSafeEvalResult(
         workflow=suite.workflow,
@@ -198,21 +201,6 @@ def _evaluate_suite(
         correct_count=correct_count,
         inference_seconds=inference_seconds,
     )
-
-
-def _split_batch(
-    batch: _EvaluationBatch, batch_size: int
-) -> Iterator[tuple[EvaluationRequest, dict[str, bool | str]]]:
-    """Yield bounded requests from one shared-state evaluation batch."""
-
-    question_items = list(batch.request.questions.items())
-    for start in range(0, len(question_items), batch_size):
-        questions = dict(question_items[start : start + batch_size])
-        yield (
-            EvaluationRequest(state=batch.request.state, questions=questions),
-            {name: batch.expected_answers[name] for name in questions},
-        )
-
 
 def _read_answer_value(answer: Answer) -> bool | str:
     """Return the discrete value used for reference-label agreement."""

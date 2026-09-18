@@ -18,9 +18,11 @@ from jev_at_home.typesafe_evals import run_typesafe_evals
 class FakeEvaluator:
     def __init__(self) -> None:
         self.calls = 0
+        self.batch_sizes = []
 
-    def evaluate(self, request, *, temperature):
+    def evaluate(self, request, *, temperature, batch_size):
         self.calls += 1
+        self.batch_sizes.append(batch_size)
         answers = {}
         for name, question in request.questions.items():
             match question:
@@ -56,7 +58,8 @@ def test_run_typesafe_evals_scores_published_reference_answers() -> None:
     )
 
     result = results[0]
-    assert evaluator.calls == 2
+    assert evaluator.calls == 1
+    assert evaluator.batch_sizes == [2]
     assert result.declared_case_count == 100
     assert result.published_case_count == 1
     assert result.evaluated_case_count == 1
