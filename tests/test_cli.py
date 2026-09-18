@@ -48,7 +48,7 @@ def test_print_result_includes_question_answer_and_probabilities() -> None:
 
     rendered = output.getvalue()
     assert "test-model" in rendered
-    assert "Inference: 123.4 ms · 1 questions · 1 batch" in rendered
+    assert "Inference: 123.4 ms · 1 question · 1 batch" in rendered
     assert "State" in rendered
     assert "My payment failed" in rendered
     assert "Which team should handle this?" in rendered

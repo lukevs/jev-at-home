@@ -129,12 +129,14 @@ def _print_result(
 ) -> None:
     """Print the model and each question's answer distribution."""
 
+    question_count = len(request.questions)
+    question_label = "question" if question_count == 1 else "questions"
     console.print(Text.assemble(("Model: ", "bold"), result.model))
     console.print(
         Text.assemble(
             ("Inference: ", "bold"),
             _format_inference_duration(inference_seconds),
-            (f" · {len(request.questions)} questions · 1 batch", "dim"),
+            (f" · {question_count} {question_label} · 1 batch", "dim"),
         )
     )
     console.print(_build_state_panel(request.state))

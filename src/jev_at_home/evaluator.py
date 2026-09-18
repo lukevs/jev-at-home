@@ -8,7 +8,8 @@ from enum import Enum
 from typing import Any
 
 import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from pydantic import JsonValue
+from transformers import AutoModelForCausalLM, AutoTokenizer, PreTrainedTokenizerBase
 
 from jev_at_home.schemas import (
     BoolQuestionInput,
@@ -40,7 +41,7 @@ class TransformersChoiceEvaluator:
         self,
         *,
         model_name: str,
-        tokenizer: Any,
+        tokenizer: PreTrainedTokenizerBase,
         model: Any,
         device: Device,
     ) -> None:
@@ -129,7 +130,7 @@ def _select_default_device(torch: Any) -> Device:
 
 
 def _compile_questions(
-    tokenizer: Any, request: EvaluationRequest
+    tokenizer: PreTrainedTokenizerBase, request: EvaluationRequest
 ) -> list[_ModelQuestion[Enum | bool]]:
     """Build prompts and label tokens for every requested question."""
 
@@ -253,7 +254,7 @@ def _build_typed_question(name: str, question: QuestionSpec) -> Question[Enum | 
 
 
 def _build_prompt_messages[T: Enum | bool](
-    state: Any, instructions: str, criteria: dict[T, str]
+    state: JsonValue, instructions: str, criteria: dict[T, str]
 ) -> list[dict[str, str]]:
     """Create a self-contained classification conversation for one question."""
 
@@ -288,7 +289,7 @@ def _format_choice(choice: Enum | bool) -> str:
     return json.dumps(choice)
 
 
-def _format_state(state: Any) -> str:
+def _format_state(state: JsonValue) -> str:
     """Return a deterministic text representation of JSON state."""
 
     if isinstance(state, str):
@@ -296,7 +297,9 @@ def _format_state(state: Any) -> str:
     return json.dumps(state, indent=2, sort_keys=True, ensure_ascii=False)
 
 
-def _resolve_label_token_id(tokenizer: Any, prompt: str, label: str) -> int:
+def _resolve_label_token_id(
+    tokenizer: PreTrainedTokenizerBase, prompt: str, label: str
+) -> int:
     """Return the token id for a one-token label following the prompt."""
 
     prompt_ids = tokenizer.encode(prompt, add_special_tokens=False)

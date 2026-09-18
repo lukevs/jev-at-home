@@ -15,13 +15,11 @@ structured generation with batched classification over a closed answer space.
 
 ## Example run
 
-This is an actual run of the included support example with the default 4B Qwen
-model. The scores are choice-normalized, not calibrated confidence estimates.
-
 ```console
 $ uv run jev-at-home judge examples/support.json --device mps
 
 Model: Qwen/Qwen3-4B-Instruct-2507
+Inference: 194.6 ms · 3 questions · 1 batch
 State: {"customer_tier": "business", "message": "Help! My payouts have been failing for three days."}
 
 Which team should handle this?
@@ -55,25 +53,20 @@ shared state + N enum questions
                               softmax + enum mapping
 ```
 
-The probabilities are normalized **only over the declared choices**. They are
-useful scores, but they are not calibrated confidence estimates. Prompt wording,
-label order, model choice, and temperature can all change them.
+The probabilities are normalized **over the declared choices**. They are
+useful scores, but they are not calibrated confidence estimates.
 
 ## Run it
 
 The default model is the Apache-2.0
 [`Qwen/Qwen3-4B-Instruct-2507`](https://huggingface.co/Qwen/Qwen3-4B-Instruct-2507).
 The first run downloads its roughly 8.1 GB of BF16 weights. Hugging Face caches
-model snapshots under `~/.cache/huggingface/hub` by default, so later runs load
-the local files instead of downloading the model again.
+model snapshots under `~/.cache/huggingface/hub` for future runs.
 
 ```bash
 uv sync
 uv run jev-at-home judge examples/support.json
 ```
-
-The command prints the original shared state, then each question, its selected
-answer, and a probability table containing every choice and criterion.
 
 Or use standard input:
 
