@@ -8,11 +8,11 @@ import pytest
 import torch
 from transformers import Qwen3Config, Qwen3ForCausalLM
 
-from jev_at_home.evaluator import _ModelQuestion
+from jev_at_home.evaluators.transformers import _ModelQuestion
 
 mx = pytest.importorskip("mlx.core")
 qwen = pytest.importorskip("mlx_lm.models.qwen3")
-MLXEvaluator = import_module("jev_at_home.mlx_evaluator").MLXEvaluator
+MLXEvaluator = import_module("jev_at_home.evaluators.mlx").MLXEvaluator
 
 
 @pytest.mark.parametrize("batch_size", [1, 2, 3, 8])

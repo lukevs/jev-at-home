@@ -6,7 +6,7 @@ import copy
 import json
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Protocol
+from typing import Any
 
 import torch
 from pydantic import JsonValue
@@ -50,18 +50,6 @@ class _TokenBatch:
     input_ids: torch.Tensor
     attention_mask: torch.Tensor
     position_ids: torch.Tensor
-
-
-class Evaluator(Protocol):
-    """Evaluate independent questions using a selected inference runtime."""
-
-    def evaluate(
-        self,
-        request: EvaluationRequest,
-        *,
-        temperature: float = 1.0,
-        batch_size: int | None = None,
-    ) -> EvaluationResult: ...
 
 
 class TransformersEvaluator:

@@ -7,7 +7,7 @@ import pytest
 import torch
 from transformers import Qwen3Config, Qwen3ForCausalLM
 
-from jev_at_home.evaluator import (
+from jev_at_home.evaluators.transformers import (
     TransformersEvaluator,
     _build_token_batch,
     _compile_questions,

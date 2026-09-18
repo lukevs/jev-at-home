@@ -18,10 +18,13 @@ import mlx.core as mx
 import typer
 from mlx_lm.models import qwen3
 
-from jev_at_home import mlx_evaluator
 from jev_at_home.cli import DEFAULT_MODEL
-from jev_at_home.evaluator import _compile_questions, _measure_shared_prefix
-from jev_at_home.mlx_evaluator import MLXEvaluator
+from jev_at_home.evaluators import mlx as mlx_evaluator
+from jev_at_home.evaluators.mlx import MLXEvaluator
+from jev_at_home.evaluators.transformers import (
+    _compile_questions,
+    _measure_shared_prefix,
+)
 from jev_at_home.schemas import EvaluationRequest, TypeSafeWorkflow
 from jev_at_home.typesafe_evals import (
     _download_typesafe_asset,

@@ -8,7 +8,7 @@ from mlx_lm.models.cache import KVCache, make_prompt_cache
 from mlx_lm.models.qwen3 import Model
 from transformers import AutoConfig, AutoTokenizer, PreTrainedTokenizerBase
 
-from jev_at_home.evaluator import (
+from jev_at_home.evaluators.transformers import (
     _MINIMUM_SHARED_PREFIX_TOKENS,
     _build_answer,
     _compile_questions,

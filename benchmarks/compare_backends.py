@@ -11,8 +11,8 @@ from typing import Annotated
 
 import typer
 
-from jev_at_home.backends import load_evaluator
 from jev_at_home.cli import DEFAULT_MODEL
+from jev_at_home.evaluators import load_evaluator
 from jev_at_home.schemas import Backend, TypeSafeWorkflow
 from jev_at_home.typesafe_evals import (
     _download_typesafe_asset,

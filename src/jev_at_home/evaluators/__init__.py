@@ -1,9 +1,22 @@
 """Load the requested inference runtime."""
 
 from importlib import import_module
+from typing import Protocol
 
-from jev_at_home.evaluator import Evaluator, TransformersEvaluator
-from jev_at_home.schemas import Backend, Device
+from jev_at_home.evaluators.transformers import TransformersEvaluator
+from jev_at_home.schemas import Backend, Device, EvaluationRequest, EvaluationResult
+
+
+class Evaluator(Protocol):
+    """Evaluate independent questions using a selected inference runtime."""
+
+    def evaluate(
+        self,
+        request: EvaluationRequest,
+        *,
+        temperature: float = 1.0,
+        batch_size: int | None = None,
+    ) -> EvaluationResult: ...
 
 
 def load_evaluator(
@@ -18,7 +31,7 @@ def load_evaluator(
             if device not in (None, "mps"):
                 raise ValueError("the MLX backend requires an Apple GPU")
             try:
-                module = import_module("jev_at_home.mlx_evaluator")
+                module = import_module("jev_at_home.evaluators.mlx")
             except ModuleNotFoundError as error:
                 if error.name not in ("mlx", "mlx.core", "mlx_lm"):
                     raise

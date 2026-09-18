@@ -10,7 +10,7 @@ from urllib.request import Request, urlopen
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue
 
-from jev_at_home.evaluator import Evaluator
+from jev_at_home.evaluators import Evaluator
 from jev_at_home.schemas import (
     Answer,
     BoolQuestionInput,
