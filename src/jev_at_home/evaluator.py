@@ -223,7 +223,7 @@ def _build_answer(question: _ModelQuestion, probabilities: list[float]) -> Answe
     )
     distribution = dict(zip(choices, probabilities, strict=True))
     return ChoiceAnswer[Enum | bool](
-        choice=choices[max(range(len(probabilities)), key=probabilities.__getitem__)],
+        choice=max(distribution, key=distribution.__getitem__),
         probabilities=distribution,
     )
 
