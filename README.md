@@ -6,14 +6,14 @@ transformer forward pass**, restricts each row's next-token logits to
 single-token labels (`A`, `B`, ...), applies softmax, and maps the distribution
 back to the caller's enum.
 
-This is not a reimplementation of TypeSafe's Jev model. TypeSafe publicly says
+The repo is meant to show that much of the shape and latency advantage can 
+be demonstrated by replacing autoregressive structured generation with 
+batched classification over a closed answer space.
+
+This is _not_ a reimplementation of TypeSafe's Jev model. TypeSafe publicly says
 Jev uses a new architecture, parallel sampler, and Reinforcement Learning for
 Calibrated Decisions, but has not published enough implementation detail to
 reproduce those pieces.
-
-This repo is meant to show that much of the shape and latency advantage can 
-be demonstrated by replacing autoregressive structured generation with 
-batched classification over a closed answer space.
 
 ## Example run
 
