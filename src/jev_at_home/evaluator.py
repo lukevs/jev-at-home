@@ -145,6 +145,7 @@ def _compile_questions(
             ),
             tokenize=False,
             add_generation_prompt=True,
+            enable_thinking=False,
         )
 
         choice_names = tuple(typed_question.criteria)

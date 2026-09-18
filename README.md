@@ -13,6 +13,32 @@ reproduce those pieces. This repo isolates the simpler hypothesis: much of the
 shape and latency advantage can be demonstrated by replacing autoregressive
 structured generation with batched classification over a closed answer space.
 
+## Example run
+
+This is an actual run of the included support example with the default 4B Qwen
+model. The scores are choice-normalized, not calibrated confidence estimates.
+
+```console
+$ uv run jev-at-home judge examples/support.json --device mps
+
+Model: Qwen/Qwen3-4B-Instruct-2507
+State: {"customer_tier": "business", "message": "Help! My payouts have been failing for three days."}
+
+Which team should handle this?
+✓ billing     100.0%
+  technical     0.0%
+  sales         0.0%
+
+Does this request need urgent attention?
+✓ true        100.0%
+  false         0.0%
+
+What is the customer's sentiment?
+  positive      0.0%
+  neutral       0.0%
+✓ negative    100.0%
+```
+
 ## How it works
 
 ```text
@@ -36,8 +62,10 @@ label order, model choice, and temperature can all change them.
 ## Run it
 
 The default model is the Apache-2.0
-[`HuggingFaceTB/SmolLM2-360M-Instruct`](https://huggingface.co/HuggingFaceTB/SmolLM2-360M-Instruct).
-The first run downloads its weights.
+[`Qwen/Qwen3-4B-Instruct-2507`](https://huggingface.co/Qwen/Qwen3-4B-Instruct-2507).
+The first run downloads its roughly 8.1 GB of BF16 weights. Hugging Face caches
+model snapshots under `~/.cache/huggingface/hub` by default, so later runs load
+the local files instead of downloading the model again.
 
 ```bash
 uv sync

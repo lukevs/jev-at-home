@@ -14,9 +14,12 @@ class FakeTokenizer:
     pad_token_id = 0
     padding_side = "right"
 
-    def apply_chat_template(self, messages, *, tokenize, add_generation_prompt):
+    def apply_chat_template(
+        self, messages, *, tokenize, add_generation_prompt, enable_thinking
+    ):
         assert not tokenize
         assert add_generation_prompt
+        assert not enable_thinking
         return "\n".join(message["content"] for message in messages) + "\nANSWER:"
 
     def encode(self, text, *, add_special_tokens):

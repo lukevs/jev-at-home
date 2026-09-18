@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+import time
 from enum import Enum
 from pathlib import Path
 from typing import Annotated
@@ -25,7 +26,7 @@ from jev_at_home.schemas import (
     QuestionSpec,
 )
 
-DEFAULT_MODEL = "HuggingFaceTB/SmolLM2-360M-Instruct"
+DEFAULT_MODEL = "Qwen/Qwen3-4B-Instruct-2507"
 _CONSOLE = Console()
 
 app = typer.Typer(
@@ -67,8 +68,10 @@ def judge(
 
     request = _load_request(request_file)
     evaluator = TransformersChoiceEvaluator.load(model, device)
+    inference_started_at = time.perf_counter()
     result = evaluator.evaluate(request, temperature=temperature)
-    _print_result(_CONSOLE, request, result)
+    inference_seconds = time.perf_counter() - inference_started_at
+    _print_result(_CONSOLE, request, result, inference_seconds)
 
 
 @app.command("example")
@@ -119,11 +122,21 @@ def _load_request(path: Path | None) -> EvaluationRequest:
 
 
 def _print_result(
-    console: Console, request: EvaluationRequest, result: EvaluationResult
+    console: Console,
+    request: EvaluationRequest,
+    result: EvaluationResult,
+    inference_seconds: float,
 ) -> None:
     """Print the model and each question's answer distribution."""
 
     console.print(Text.assemble(("Model: ", "bold"), result.model))
+    console.print(
+        Text.assemble(
+            ("Inference: ", "bold"),
+            _format_inference_duration(inference_seconds),
+            (f" · {len(request.questions)} questions · 1 batch", "dim"),
+        )
+    )
     console.print(_build_state_panel(request.state))
 
     for name, question in request.questions.items():
@@ -133,6 +146,14 @@ def _print_result(
         summary.append(_format_answer(answer.choice), style="bold green")
         console.print(Panel(summary, title=Text(name, style="bold cyan"), expand=False))
         console.print(_build_probability_table(question, answer))
+
+
+def _format_inference_duration(seconds: float) -> str:
+    """Format an inference duration at a useful human scale."""
+
+    if seconds < 1:
+        return f"{seconds * 1_000:.1f} ms"
+    return f"{seconds:.2f} s"
 
 
 def _build_state_panel(state: JsonValue) -> Panel:
