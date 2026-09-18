@@ -1,4 +1,4 @@
-"""Turn next-token logits into batched enum judgments."""
+"""Turn next-token logits into batched typed judgments."""
 
 from __future__ import annotations
 
@@ -12,6 +12,7 @@ from pydantic import JsonValue
 from transformers import AutoModelForCausalLM, AutoTokenizer, PreTrainedTokenizerBase
 
 from jev_at_home.schemas import (
+    Answer,
     BoolQuestionInput,
     ChoiceAnswer,
     Device,
@@ -19,22 +20,27 @@ from jev_at_home.schemas import (
     EvaluationResult,
     Question,
     QuestionSpec,
+    ScoreAnswer,
+    ScoreQuestion,
+    ScoreQuestionInput,
 )
 
 _LABELS = tuple("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
 
 
 @dataclass(frozen=True)
-class _ModelQuestion[T: Enum | bool]:
+class _ModelQuestion:
     """A prompt plus the token-level answer space used to score it."""
 
     name: str
     prompt: str
-    choice_names: tuple[T, ...]
+    choice_names: tuple[Enum | bool | int, ...]
+    choice_descriptions: tuple[str, ...]
     label_token_ids: tuple[int, ...]
+    returns_score: bool
 
 
-class TransformersChoiceEvaluator:
+class TransformersEvaluator:
     """Evaluate every question in one batched causal-LM forward pass."""
 
     def __init__(
@@ -53,7 +59,7 @@ class TransformersChoiceEvaluator:
     @classmethod
     def load(
         cls, model_name: str, device: Device | None = None
-    ) -> TransformersChoiceEvaluator:
+    ) -> TransformersEvaluator:
         """Load a Hugging Face causal LM and tokenizer for local evaluation."""
 
         selected_device = device or _select_default_device(torch)
@@ -82,7 +88,7 @@ class TransformersChoiceEvaluator:
 
         model_questions = _compile_questions(self.tokenizer, request)
         next_token_logits = self._predict_next_token_logits(model_questions)
-        probabilities = _calculate_choice_probabilities(
+        probabilities = _calculate_answer_probabilities(
             model_questions,
             next_token_logits,
             temperature=temperature,
@@ -92,7 +98,7 @@ class TransformersChoiceEvaluator:
         return EvaluationResult(model=self.model_name, answers=answers)
 
     def _predict_next_token_logits(
-        self, questions: list[_ModelQuestion[Enum | bool]]
+        self, questions: list[_ModelQuestion]
     ) -> torch.Tensor:
         """Return each question's next-token logits from one model call."""
 
@@ -106,7 +112,7 @@ class TransformersChoiceEvaluator:
         return logits[row_indices, last_token_indices]
 
     def _tokenize_questions(
-        self, questions: list[_ModelQuestion[Enum | bool]]
+        self, questions: list[_ModelQuestion]
     ) -> dict[str, torch.Tensor]:
         """Return a padded tensor batch for the model questions."""
 
@@ -131,10 +137,10 @@ def _select_default_device(torch: Any) -> Device:
 
 def _compile_questions(
     tokenizer: PreTrainedTokenizerBase, request: EvaluationRequest
-) -> list[_ModelQuestion[Enum | bool]]:
+) -> list[_ModelQuestion]:
     """Build prompts and label tokens for every requested question."""
 
-    model_questions: list[_ModelQuestion[Enum | bool]] = []
+    model_questions: list[_ModelQuestion] = []
 
     for name, question in request.questions.items():
         typed_question = _build_typed_question(name, question)
@@ -157,18 +163,20 @@ def _compile_questions(
                 name=name,
                 prompt=prompt,
                 choice_names=choice_names,
+                choice_descriptions=tuple(typed_question.criteria.values()),
                 label_token_ids=tuple(
                     _resolve_label_token_id(tokenizer, prompt, label)
                     for label in labels
                 ),
+                returns_score=isinstance(question, ScoreQuestionInput),
             )
         )
 
     return model_questions
 
 
-def _calculate_choice_probabilities(
-    questions: list[_ModelQuestion[Enum | bool]],
+def _calculate_answer_probabilities(
+    questions: list[_ModelQuestion],
     next_token_logits: torch.Tensor,
     *,
     temperature: float,
@@ -183,27 +191,47 @@ def _calculate_choice_probabilities(
 
 
 def _select_answers(
-    questions: list[_ModelQuestion[Enum | bool]], probabilities: torch.Tensor
-) -> dict[str, ChoiceAnswer[Enum | bool]]:
+    questions: list[_ModelQuestion], probabilities: torch.Tensor
+) -> dict[str, Answer]:
     """Return typed answers for the model questions and their probabilities."""
 
-    answers: dict[str, ChoiceAnswer[Enum | bool]] = {}
+    answers: dict[str, Answer] = {}
 
     for row, question in enumerate(questions):
         values = probabilities[row, : len(question.choice_names)].tolist()
-        distribution = dict(zip(question.choice_names, values, strict=True))
-        answers[question.name] = ChoiceAnswer[Enum | bool](
-            choice=question.choice_names[
-                max(range(len(values)), key=values.__getitem__)
-            ],
-            probabilities=distribution,
-        )
+        answers[question.name] = _build_answer(question, values)
 
     return answers
 
 
+def _build_answer(question: _ModelQuestion, probabilities: list[float]) -> Answer:
+    """Build the typed answer for one model question."""
+
+    if question.returns_score:
+        levels = tuple(int(choice) for choice in question.choice_names)
+        distribution = dict(zip(levels, probabilities, strict=True))
+        return ScoreAnswer(
+            score=sum(
+                level * probability for level, probability in distribution.items()
+            ),
+            legend=dict(
+                zip(levels, question.choice_descriptions, strict=True)
+            ),
+            probabilities=distribution,
+        )
+
+    choices = tuple(
+        choice for choice in question.choice_names if isinstance(choice, (Enum, bool))
+    )
+    distribution = dict(zip(choices, probabilities, strict=True))
+    return ChoiceAnswer[Enum | bool](
+        choice=choices[max(range(len(probabilities)), key=probabilities.__getitem__)],
+        probabilities=distribution,
+    )
+
+
 def _build_candidate_token_tensors(
-    questions: list[_ModelQuestion[Enum | bool]], device: Device
+    questions: list[_ModelQuestion], device: Device
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Return padded candidate-token IDs and their valid-entry mask."""
 
@@ -225,13 +253,21 @@ def _build_candidate_token_tensors(
     return candidate_ids, candidate_mask
 
 
-def _build_typed_question(name: str, question: QuestionSpec) -> Question[Enum | bool]:
+def _build_typed_question(
+    name: str, question: QuestionSpec
+) -> Question[Enum | bool] | ScoreQuestion:
     """Return the typed question represented by a JSON question input."""
 
     if isinstance(question, BoolQuestionInput):
         return Question[bool](
             instructions=question.instructions,
             criteria=question.criteria,
+        )
+
+    if isinstance(question, ScoreQuestionInput):
+        return ScoreQuestion(
+            instructions=question.instructions,
+            criteria=dict(enumerate(question.criteria)),
         )
 
     enum_type = Enum(
@@ -253,7 +289,7 @@ def _build_typed_question(name: str, question: QuestionSpec) -> Question[Enum | 
     )
 
 
-def _build_prompt_messages[T: Enum | bool](
+def _build_prompt_messages[T: Enum | bool | int](
     state: JsonValue, instructions: str, criteria: dict[T, str]
 ) -> list[dict[str, str]]:
     """Create a self-contained classification conversation for one question."""
@@ -281,7 +317,7 @@ def _build_prompt_messages[T: Enum | bool](
     ]
 
 
-def _format_choice(choice: Enum | bool) -> str:
+def _format_choice(choice: Enum | bool | int) -> str:
     """Return the external text for a typed choice."""
 
     if isinstance(choice, Enum):

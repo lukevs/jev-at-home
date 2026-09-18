@@ -6,8 +6,8 @@ from enum import Enum
 import pytest
 import torch
 
-from jev_at_home.evaluator import TransformersChoiceEvaluator
-from jev_at_home.schemas import EvaluationRequest
+from jev_at_home.evaluator import TransformersEvaluator
+from jev_at_home.schemas import EvaluationRequest, ScoreAnswer
 
 
 class FakeTokenizer:
@@ -60,6 +60,9 @@ class FakeModel:
         logits[1, :, ord("C")] = 1.0
         logits[2, :, ord("A")] = 5.0
         logits[2, :, ord("B")] = 1.0
+        logits[3, :, ord("A")] = 1.0
+        logits[3, :, ord("B")] = 2.0
+        logits[3, :, ord("C")] = 4.0
         return FakeOutput(logits)
 
 
@@ -93,11 +96,16 @@ def test_all_questions_use_one_forward_pass_and_return_distributions() -> None:
                         "false": "No action is required",
                     },
                 },
+                "severity": {
+                    "type": "score",
+                    "instructions": "How severe is this?",
+                    "criteria": ["Minor", "Moderate", "Severe"],
+                },
             },
         }
     )
     model = FakeModel()
-    evaluator = TransformersChoiceEvaluator(
+    evaluator = TransformersEvaluator(
         model_name="fake", tokenizer=FakeTokenizer(), model=model, device="cpu"
     )
 
@@ -112,5 +120,14 @@ def test_all_questions_use_one_forward_pass_and_return_distributions() -> None:
     assert priority.value == "high"
     assert result.answers["actionable"].choice is True
     assert set(result.answers["actionable"].probabilities) == {True, False}
+    severity = result.answers["severity"]
+    assert isinstance(severity, ScoreAnswer)
+    assert severity.score == pytest.approx(
+        sum(
+            level * probability
+            for level, probability in severity.probabilities.items()
+        )
+    )
+    assert severity.legend == {0: "Minor", 1: "Moderate", 2: "Severe"}
     for answer in result.answers.values():
         assert sum(answer.probabilities.values()) == pytest.approx(1.0)

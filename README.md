@@ -1,8 +1,8 @@
 # jev-at-home
 
 A small experiment in Jev-shaped inference with an ordinary open-source causal
-language model. It evaluates many independent enum or boolean questions in **one batched
-transformer forward pass**, restricts each row's next-token logits to
+language model. It evaluates many independent enum, boolean, or score questions
+in **one batched transformer forward pass**, restricts each row's next-token logits to
 single-token labels (`A`, `B`, ...), applies softmax, and maps the distribution
 back to the caller's enum.
 
@@ -42,7 +42,7 @@ What is the customer's sentiment?
 ## How it works
 
 ```text
-shared state + N enum questions
+shared state + N typed questions
               │
               ├─ one independent prompt per question
               │
@@ -84,7 +84,7 @@ uv run jev-at-home judge examples/support.json \
   --device mps
 ```
 
-Input supports string enums and booleans. Each question has an explicit
+Input supports string enums, booleans, and ordered scores. Each question has an explicit
 type discriminator:
 
 ```json
@@ -113,6 +113,22 @@ A boolean question maps its key directly to `true` or `false` in the result:
     "true": "Time-sensitive or blocking",
     "false": "No urgency is expressed"
   }
+}
+```
+
+A score question declares an ordered list of levels. Levels are numbered from
+zero, and the returned score is the probability-weighted mean of those level
+numbers. The result also includes the complete level distribution and legend.
+
+```json
+{
+  "type": "score",
+  "instructions": "How severe is the service impact?",
+  "criteria": [
+    "Minor: cosmetic or isolated impact",
+    "Moderate: degraded service with a workaround",
+    "Severe: a critical path is unavailable for many users"
+  ]
 }
 ```
 

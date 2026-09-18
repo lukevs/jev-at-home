@@ -46,8 +46,28 @@ class BoolQuestionInput(BaseModel):
         return value
 
 
+class ScoreQuestion(BaseModel):
+    """One atomic judgment over ordered numeric levels."""
+
+    model_config = ConfigDict(frozen=True)
+
+    instructions: str
+    criteria: dict[int, str]
+
+
+class ScoreQuestionInput(BaseModel):
+    """JSON representation of a question answered on an ordered scale."""
+
+    model_config = ConfigDict(frozen=True)
+
+    type: Literal["score"] = "score"
+    instructions: str
+    criteria: list[str]
+
+
 type QuestionSpec = Annotated[
-    EnumQuestionInput | BoolQuestionInput, Field(discriminator="type")
+    EnumQuestionInput | BoolQuestionInput | ScoreQuestionInput,
+    Field(discriminator="type"),
 ]
 
 
@@ -69,10 +89,23 @@ class ChoiceAnswer[T: Enum | bool](BaseModel):
     probabilities: dict[T, float]
 
 
+class ScoreAnswer(BaseModel):
+    """An expected score and its distribution over the declared levels."""
+
+    model_config = ConfigDict(frozen=True)
+
+    score: float
+    legend: dict[int, str]
+    probabilities: dict[int, float]
+
+
+type Answer = ChoiceAnswer[Enum | bool] | ScoreAnswer
+
+
 class EvaluationResult(BaseModel):
     """Answers keyed by the corresponding question names."""
 
     model_config = ConfigDict(frozen=True, arbitrary_types_allowed=True)
 
     model: str
-    answers: dict[str, ChoiceAnswer[Enum | bool]]
+    answers: dict[str, Answer]
