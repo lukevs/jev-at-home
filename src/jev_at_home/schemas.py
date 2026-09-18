@@ -10,6 +10,13 @@ from pydantic import BaseModel, ConfigDict, Field, JsonValue, field_validator
 Device = Literal["cpu", "mps", "cuda"]
 
 
+class Backend(StrEnum):
+    """The runtime that executes the transformer."""
+
+    TRANSFORMERS = "transformers"
+    MLX = "mlx"
+
+
 class TypeSafeWorkflow(StrEnum):
     """A workflow with public examples on TypeSafe's eval site."""
 

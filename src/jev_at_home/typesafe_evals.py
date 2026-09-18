@@ -10,7 +10,7 @@ from urllib.request import Request, urlopen
 
 from pydantic import BaseModel, ConfigDict, Field, JsonValue
 
-from jev_at_home.evaluator import TransformersEvaluator
+from jev_at_home.evaluators import Evaluator
 from jev_at_home.schemas import (
     Answer,
     BoolQuestionInput,
@@ -104,7 +104,7 @@ class _EvaluationSuite:
 
 
 def run_typesafe_evals(
-    evaluator: TransformersEvaluator,
+    evaluator: Evaluator,
     workflows: list[TypeSafeWorkflow],
     *,
     case_limit: int | None = None,
@@ -166,7 +166,7 @@ def _load_evaluation_suite(
 
 
 def _evaluate_suite(
-    evaluator: TransformersEvaluator,
+    evaluator: Evaluator,
     suite: _EvaluationSuite,
     *,
     batch_size: int,

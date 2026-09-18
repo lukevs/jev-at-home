@@ -36,6 +36,7 @@ class _ModelQuestion:
 
     name: str
     prompt: str
+    token_ids: list[int]
     choice_names: tuple[Enum | bool | int, ...]
     choice_descriptions: tuple[str, ...]
     label_token_ids: tuple[int, ...]
@@ -122,10 +123,7 @@ class TransformersEvaluator:
     ) -> torch.Tensor:
         """Return next-token logits with shared-prefix reuse when worthwhile."""
 
-        token_sequences = [
-            self.tokenizer.encode(question.prompt, add_special_tokens=False)
-            for question in questions
-        ]
+        token_sequences = [question.token_ids for question in questions]
         shared_prefix_length = _measure_shared_prefix(token_sequences)
 
         with torch.inference_mode():
@@ -323,15 +321,17 @@ def _compile_questions(
 
         choice_names = tuple(typed_question.criteria)
         labels = _LABELS[: len(choice_names)]
+        prompt_ids = tokenizer.encode(prompt, add_special_tokens=False)
 
         model_questions.append(
             _ModelQuestion(
                 name=name,
                 prompt=prompt,
+                token_ids=prompt_ids,
                 choice_names=choice_names,
                 choice_descriptions=tuple(typed_question.criteria.values()),
                 label_token_ids=tuple(
-                    _resolve_label_token_id(tokenizer, prompt, label)
+                    _resolve_label_token_id(tokenizer, prompt, prompt_ids, label)
                     for label in labels
                 ),
                 returns_score=isinstance(question, ScoreQuestionInput),
@@ -500,11 +500,13 @@ def _format_state(state: JsonValue) -> str:
 
 
 def _resolve_label_token_id(
-    tokenizer: PreTrainedTokenizerBase, prompt: str, label: str
+    tokenizer: PreTrainedTokenizerBase,
+    prompt: str,
+    prompt_ids: list[int],
+    label: str,
 ) -> int:
     """Return the token id for a one-token label following the prompt."""
 
-    prompt_ids = tokenizer.encode(prompt, add_special_tokens=False)
     continued_ids = tokenizer.encode(prompt + label, add_special_tokens=False)
 
     if (

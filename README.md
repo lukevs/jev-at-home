@@ -18,10 +18,11 @@ reproduce those pieces.
 ## Example run
 
 ```console
-$ uv run jev-at-home judge examples/support.json --device mps
+$ uv run --extra mlx jev-at-home judge examples/support.json --backend mlx
 
+Backend: mlx
 Model: Qwen/Qwen3-4B-Instruct-2507
-Inference: 194.6 ms · 3 questions · 1 batch
+Inference: 131.6 ms · 3 questions · 1 batch
 State: {"customer_tier": "business", "message": "Help! My payouts have been failing for three days."}
 
 Which team should handle this?
@@ -84,6 +85,13 @@ uv run jev-at-home judge examples/support.json \
   --device mps
 ```
 
+On Apple Silicon, an optional MLX backend runs using Metal kernels:
+
+```bash
+uv run --extra mlx jev-at-home judge examples/support.json --backend mlx
+uv run --extra mlx jev-at-home typesafe-eval --backend mlx --batch-size 1
+```
+
 ## Run TypeSafe's public workflow examples
 
 TypeSafe's eval viewer publishes five showcased cases for each of its four
@@ -110,8 +118,8 @@ question-level agreement with the published two-model consensus.
 
 ## Data
 
-Input supports string enums, booleans, and ordered scores. Each question has an explicit
-type discriminator:
+Data follows TypeSafe's schemas. Input supports string enums, booleans, and ordered scores.
+Each question has an explicit type discriminator:
 
 ```json
 {
@@ -160,21 +168,22 @@ numbers. The result also includes the complete level distribution and legend.
 
 ### Qwen3-4B public example results
 
-The Qwen results below were measured with `Qwen/Qwen3-4B-Instruct-2507`, MPS,
-and the default batch size of one on an Apple M5 Max. A case is one complete
-workflow example and can contain many questions. Inference time includes model
-calls only; it excludes model loading and downloading the eval assets.
+The Qwen results below were measured with `Qwen/Qwen3-4B-Instruct-2507`, the
+optional MLX backend, and batch size 1 on an Apple M5 Max. Times are medians
+of two runs per workflow. A case is one complete workflow example and can
+contain many questions. Inference time includes prompt preparation and model
+execution; it excludes loading and downloading eval assets.
 
 | Workflow | Public cases | Question matches | Reference agreement | Inference/case | Inference/question |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Security incidents | 5 | 30/48 | 62.5% | 1.34 s | 139.8 ms |
-| Agent trace observability | 5 | 34/52 | 65.4% | 2.04 s | 195.8 ms |
-| Invoice processing | 5 | 137/184 | 74.5% | 14.51 s | 394.4 ms |
-| Customer service | 5 | 75/92 | 81.5% | 1.32 s | 71.5 ms |
-| **Overall** | **20** | **276/376** | **73.4%** | **4.80 s** | **255.4 ms** |
+| Security incidents | 5 | 30/48 | 62.5% | 2.73 s | 284.7 ms |
+| Agent trace observability | 5 | 35/52 | 67.3% | 4.30 s | 413.7 ms |
+| Invoice processing | 5 | 136/184 | 73.9% | 21.43 s | 582.4 ms |
+| Customer service | 5 | 76/92 | 82.6% | 2.01 s | 109.3 ms |
+| **Overall** | **20** | **277/376** | **73.7%** | **7.62 s** | **405.3 ms** |
 
 These results measure 376 question instances inside the 20 public showcased
-cases. A match means Qwen's top answer agrees with TypeSafe's separate published
+cases. A match means Qwen's top answer agrees with TypeSafe's published
 reference consensus. TypeSafe does not publish the complete cases or
 executable policy harness.
 
@@ -186,4 +195,10 @@ The key sources for the experiment are TypeSafe's [Jev announcement](https://typ
 
 ```bash
 uv run pytest
+```
+
+On Apple Silicon, include the MLX numerical-parity tests with:
+
+```bash
+uv run --extra mlx pytest
 ```

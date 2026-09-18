@@ -17,9 +17,10 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-from jev_at_home.evaluator import TransformersEvaluator
+from jev_at_home.evaluators import load_evaluator
 from jev_at_home.schemas import (
     Answer,
+    Backend,
     ChoiceAnswer,
     Device,
     EvaluationRequest,
@@ -59,6 +60,9 @@ def judge(
     model: Annotated[
         str, typer.Option(help="Hugging Face causal language model to load.")
     ] = DEFAULT_MODEL,
+    backend: Annotated[
+        Backend, typer.Option(help="Inference runtime; MLX requires the mlx extra.")
+    ] = Backend.TRANSFORMERS,
     device: Annotated[
         Device | None, typer.Option(help="Inference device: cpu, mps, or cuda.")
     ] = None,
@@ -73,7 +77,11 @@ def judge(
     """Judge all questions in REQUEST_FILE against one shared state."""
 
     request = _load_request(request_file)
-    evaluator = TransformersEvaluator.load(model, device)
+    try:
+        evaluator = load_evaluator(model, backend, device)
+    except ValueError as error:
+        raise typer.BadParameter(str(error)) from error
+    _CONSOLE.print(f"Backend: {backend.value}")
     inference_started_at = time.perf_counter()
     result = evaluator.evaluate(request, temperature=temperature)
     inference_seconds = time.perf_counter() - inference_started_at
@@ -100,6 +108,9 @@ def evaluate_typesafe(
     model: Annotated[
         str, typer.Option(help="Hugging Face causal language model to load.")
     ] = DEFAULT_MODEL,
+    backend: Annotated[
+        Backend, typer.Option(help="Inference runtime; MLX requires the mlx extra.")
+    ] = Backend.TRANSFORMERS,
     device: Annotated[
         Device | None, typer.Option(help="Inference device: cpu, mps, or cuda.")
     ] = None,
@@ -114,7 +125,11 @@ def evaluate_typesafe(
     """Run TypeSafe's published workflow examples against a local model."""
 
     workflows = [workflow] if workflow else list(TypeSafeWorkflow)
-    evaluator = TransformersEvaluator.load(model, device)
+    try:
+        evaluator = load_evaluator(model, backend, device)
+    except ValueError as error:
+        raise typer.BadParameter(str(error)) from error
+    _CONSOLE.print(f"Backend: {backend.value}")
     try:
         with _CONSOLE.status("Running TypeSafe workflow examples..."):
             results = run_typesafe_evals(
