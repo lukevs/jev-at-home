@@ -180,9 +180,7 @@ executable policy harness.
 
 ## Sources
 
-The key sources for the experiment are TypeSafe's
-[Jev announcement](https://typesafe.ai/blog/introducing-system-one-models-and-jev) and
-[Jev documentation](https://docs.typesafe.ai/introduction)
+The key sources for the experiment are TypeSafe's [Jev announcement](https://typesafe.ai/blog/introducing-system-one-models-and-jev) and [Jev documentation](https://docs.typesafe.ai/introduction)
 
 ## Test
 
