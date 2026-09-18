@@ -37,7 +37,7 @@ _CONSOLE = Console()
 
 app = typer.Typer(
     no_args_is_help=True,
-    help="Evaluate typed questions with one batched transformer forward pass.",
+    help="Evaluate typed questions with shared-prefix transformer inference.",
 )
 
 
@@ -70,7 +70,7 @@ def judge(
         ),
     ] = 1.0,
 ) -> None:
-    """Judge all questions in REQUEST_FILE as a single model batch."""
+    """Judge all questions in REQUEST_FILE against one shared state."""
 
     request = _load_request(request_file)
     evaluator = TransformersEvaluator.load(model, device)

@@ -2,9 +2,9 @@
 
 A small experiment in Jev-shaped inference with an ordinary open-source causal
 language model. It evaluates many independent enum, boolean, or score questions
-in **one batched transformer forward pass**, restricts each row's next-token logits to
-single-token labels (`A`, `B`, ...), applies softmax, and maps the distribution
-back to the caller's enum.
+with **one shared-prefix prefill and bounded suffix batches**, restricts each
+row's next-token logits to single-token labels (`A`, `B`, ...), applies softmax,
+and maps the distribution back to the caller's enum.
 
 The repo is meant to show that much of the shape and latency advantage can 
 be demonstrated by replacing autoregressive structured generation with 
@@ -42,17 +42,17 @@ What is the customer's sentiment?
 ## How it works
 
 ```text
-shared state + N typed questions
-              │
-              ├─ one independent prompt per question
-              │
-              └─ padded batch ──> one LM forward pass
-                                      │
-                         next-token logits for each row
-                                      │
-                       select logits for A/B/C/... only
-                                      │
-                              softmax + enum mapping
+shared state ──> common prompt prefix ──> one KV-cache prefill
+                                               │
+N typed questions ──> unique prompt suffixes ──┤
+                                               │
+                                  bounded suffix batches
+                                               │
+                                final-token logits per row
+                                               │
+                                  select A/B/C/... logits
+                                               │
+                                     softmax + typed mapping
 ```
 
 The probabilities are normalized **over the declared choices**. They are
@@ -108,7 +108,9 @@ The runner downloads the public viewer assets from
 Score questions to this project's boolean, enum, and score schemas, and reports
 question-level agreement with the published two-model consensus. Score agreement
 uses the level with the greatest probability. `--batch-size` limits how many
-questions share each transformer pass so large states fit in local memory.
+question suffixes share each transformer pass so large states fit in local
+memory. The shared state is prefilled once per workflow node and reused across
+those suffix batches.
 
 Input supports string enums, booleans, and ordered scores. Each question has an explicit
 type discriminator:

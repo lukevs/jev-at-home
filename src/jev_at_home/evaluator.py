@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import json
 from dataclasses import dataclass
 from enum import Enum
@@ -26,6 +27,7 @@ from jev_at_home.schemas import (
 )
 
 _LABELS = tuple("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+_MINIMUM_SHARED_PREFIX_TOKENS = 32
 
 
 @dataclass(frozen=True)
@@ -40,8 +42,17 @@ class _ModelQuestion:
     returns_score: bool
 
 
+@dataclass(frozen=True)
+class _TokenBatch:
+    """Left-padded model inputs and their true token positions."""
+
+    input_ids: torch.Tensor
+    attention_mask: torch.Tensor
+    position_ids: torch.Tensor
+
+
 class TransformersEvaluator:
-    """Evaluate every question in one batched causal-LM forward pass."""
+    """Evaluate questions by sharing state prefill across batched suffixes."""
 
     def __init__(
         self,
@@ -79,15 +90,24 @@ class TransformersEvaluator:
         )
 
     def evaluate(
-        self, request: EvaluationRequest, *, temperature: float = 1.0
+        self,
+        request: EvaluationRequest,
+        *,
+        temperature: float = 1.0,
+        batch_size: int | None = None,
     ) -> EvaluationResult:
-        """Return distributions for all questions using exactly one model call."""
+        """Return distributions while encoding a shared prompt prefix once."""
 
         if temperature <= 0:
             raise ValueError("temperature must be greater than zero")
+        if batch_size is not None and batch_size < 1:
+            raise ValueError("batch size must be at least one")
 
         model_questions = _compile_questions(self.tokenizer, request)
-        next_token_logits = self._predict_next_token_logits(model_questions)
+        next_token_logits = self._predict_next_token_logits(
+            model_questions,
+            batch_size or len(model_questions),
+        )
         probabilities = _calculate_answer_probabilities(
             model_questions,
             next_token_logits,
@@ -98,29 +118,177 @@ class TransformersEvaluator:
         return EvaluationResult(model=self.model_name, answers=answers)
 
     def _predict_next_token_logits(
-        self, questions: list[_ModelQuestion]
+        self, questions: list[_ModelQuestion], batch_size: int
     ) -> torch.Tensor:
-        """Return each question's next-token logits from one model call."""
+        """Return next-token logits with shared-prefix reuse when worthwhile."""
 
-        model_inputs = self._tokenize_questions(questions)
+        token_sequences = [
+            self.tokenizer.encode(question.prompt, add_special_tokens=False)
+            for question in questions
+        ]
+        shared_prefix_length = _measure_shared_prefix(token_sequences)
 
         with torch.inference_mode():
-            logits = self.model(**model_inputs, logits_to_keep=1).logits
+            if shared_prefix_length >= _MINIMUM_SHARED_PREFIX_TOKENS:
+                return self._predict_with_shared_prefix(
+                    token_sequences,
+                    shared_prefix_length,
+                    batch_size,
+                )
+            return self._predict_full_prompts(token_sequences, batch_size)
 
-        return logits[:, -1, :]
+    def _predict_with_shared_prefix(
+        self,
+        token_sequences: list[list[int]],
+        shared_prefix_length: int,
+        batch_size: int,
+    ) -> torch.Tensor:
+        """Prefill shared tokens once and branch into bounded suffix batches."""
 
-    def _tokenize_questions(
-        self, questions: list[_ModelQuestion]
-    ) -> dict[str, torch.Tensor]:
-        """Return a padded tensor batch for the model questions."""
-
-        inputs = self.tokenizer(
-            [question.prompt for question in questions],
-            add_special_tokens=False,
-            padding=True,
-            return_tensors="pt",
+        prefix_tokens = token_sequences[0][:shared_prefix_length]
+        prefix_batch = _build_token_batch(
+            [prefix_tokens],
+            start_position=0,
+            pad_token_id=self.tokenizer.pad_token_id,
+            device=self.device,
         )
-        return {name: tensor.to(self.device) for name, tensor in inputs.items()}
+        prefix_output = self.model(
+            input_ids=prefix_batch.input_ids,
+            attention_mask=prefix_batch.attention_mask,
+            position_ids=prefix_batch.position_ids,
+            use_cache=True,
+            logits_to_keep=1,
+        )
+        prefix_cache = prefix_output.past_key_values
+        del prefix_output
+
+        logits = []
+        suffixes = [tokens[shared_prefix_length:] for tokens in token_sequences]
+        for suffix_batch in _group_token_sequences(suffixes, batch_size):
+            logits.append(
+                self._predict_suffixes(
+                    suffix_batch,
+                    prefix_cache,
+                    shared_prefix_length,
+                )
+            )
+        return torch.cat(logits)
+
+    def _predict_suffixes(
+        self,
+        suffixes: list[list[int]],
+        prefix_cache: Any,
+        shared_prefix_length: int,
+    ) -> torch.Tensor:
+        """Return logits for unique suffixes branching from one cached prefix."""
+
+        suffix_batch = _build_token_batch(
+            suffixes,
+            start_position=shared_prefix_length,
+            pad_token_id=self.tokenizer.pad_token_id,
+            device=self.device,
+        )
+        prefix_attention = torch.ones(
+            (len(suffixes), shared_prefix_length),
+            dtype=torch.long,
+            device=self.device,
+        )
+        branched_cache = copy.deepcopy(prefix_cache)
+        branched_cache.batch_repeat_interleave(len(suffixes))
+        output = self.model(
+            input_ids=suffix_batch.input_ids,
+            attention_mask=torch.cat(
+                (prefix_attention, suffix_batch.attention_mask), dim=1
+            ),
+            position_ids=suffix_batch.position_ids,
+            past_key_values=branched_cache,
+            use_cache=False,
+            logits_to_keep=1,
+        )
+        return output.logits[:, -1, :]
+
+    def _predict_full_prompts(
+        self, token_sequences: list[list[int]], batch_size: int
+    ) -> torch.Tensor:
+        """Return logits in bounded batches when prompts share no useful prefix."""
+
+        logits = []
+        for prompt_batch in _group_token_sequences(token_sequences, batch_size):
+            model_inputs = _build_token_batch(
+                prompt_batch,
+                start_position=0,
+                pad_token_id=self.tokenizer.pad_token_id,
+                device=self.device,
+            )
+            output = self.model(
+                input_ids=model_inputs.input_ids,
+                attention_mask=model_inputs.attention_mask,
+                position_ids=model_inputs.position_ids,
+                logits_to_keep=1,
+            )
+            logits.append(output.logits[:, -1, :])
+        return torch.cat(logits)
+
+
+def _measure_shared_prefix(token_sequences: list[list[int]]) -> int:
+    """Return shared token count while leaving every prompt a nonempty suffix."""
+
+    if len(token_sequences) < 2:
+        return 0
+    shared_limit = min(map(len, token_sequences)) - 1
+    first_sequence = token_sequences[0]
+    for index in range(shared_limit):
+        if any(
+            tokens[index] != first_sequence[index]
+            for tokens in token_sequences[1:]
+        ):
+            return index
+    return shared_limit
+
+
+def _group_token_sequences(
+    token_sequences: list[list[int]], batch_size: int
+) -> list[list[list[int]]]:
+    """Group token sequences into bounded batches without changing their order."""
+
+    return [
+        token_sequences[start : start + batch_size]
+        for start in range(0, len(token_sequences), batch_size)
+    ]
+
+
+def _build_token_batch(
+    token_sequences: list[list[int]],
+    *,
+    start_position: int,
+    pad_token_id: int,
+    device: Device,
+) -> _TokenBatch:
+    """Build a left-padded batch with positions unaffected by its padding."""
+
+    width = max(map(len, token_sequences))
+    shape = (len(token_sequences), width)
+    input_ids = torch.full(shape, pad_token_id, dtype=torch.long, device=device)
+    attention_mask = torch.zeros(shape, dtype=torch.long, device=device)
+    position_ids = torch.zeros(shape, dtype=torch.long, device=device)
+
+    for row, tokens in enumerate(token_sequences):
+        token_count = len(tokens)
+        input_ids[row, -token_count:] = torch.tensor(
+            tokens, dtype=torch.long, device=device
+        )
+        attention_mask[row, -token_count:] = 1
+        position_ids[row, -token_count:] = torch.arange(
+            start_position,
+            start_position + token_count,
+            dtype=torch.long,
+            device=device,
+        )
+    return _TokenBatch(
+        input_ids=input_ids,
+        attention_mask=attention_mask,
+        position_ids=position_ids,
+    )
 
 
 def _select_default_device(torch: Any) -> Device:
