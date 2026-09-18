@@ -3,16 +3,30 @@
 from __future__ import annotations
 
 import sys
+from enum import Enum
 from pathlib import Path
 from typing import Annotated
 
 import typer
-from pydantic import ValidationError
+from pydantic import JsonValue, ValidationError
+from rich import box
+from rich.console import Console
+from rich.json import JSON
+from rich.panel import Panel
+from rich.table import Table
+from rich.text import Text
 
 from jev_at_home.evaluator import TransformersChoiceEvaluator
-from jev_at_home.schemas import Device, EvaluationRequest
+from jev_at_home.schemas import (
+    ChoiceAnswer,
+    Device,
+    EvaluationRequest,
+    EvaluationResult,
+    QuestionSpec,
+)
 
 DEFAULT_MODEL = "HuggingFaceTB/SmolLM2-360M-Instruct"
+_CONSOLE = Console()
 
 app = typer.Typer(
     no_args_is_help=True,
@@ -54,7 +68,7 @@ def judge(
     request = _load_request(request_file)
     evaluator = TransformersChoiceEvaluator.load(model, device)
     result = evaluator.evaluate(request, temperature=temperature)
-    typer.echo(result.model_dump_json(indent=2))
+    _print_result(_CONSOLE, request, result)
 
 
 @app.command("example")
@@ -102,3 +116,64 @@ def _load_request(path: Path | None) -> EvaluationRequest:
         return EvaluationRequest.model_validate_json(raw)
     except ValidationError as error:
         raise typer.BadParameter(str(error)) from error
+
+
+def _print_result(
+    console: Console, request: EvaluationRequest, result: EvaluationResult
+) -> None:
+    """Print the model and each question's answer distribution."""
+
+    console.print(Text.assemble(("Model: ", "bold"), result.model))
+    console.print(_build_state_panel(request.state))
+
+    for name, question in request.questions.items():
+        answer = result.answers[name]
+        summary = Text(question.instructions, style="bold")
+        summary.append("\nSelected answer: ", style="dim")
+        summary.append(_format_answer(answer.choice), style="bold green")
+        console.print(Panel(summary, title=Text(name, style="bold cyan"), expand=False))
+        console.print(_build_probability_table(question, answer))
+
+
+def _build_state_panel(state: JsonValue) -> Panel:
+    """Build a panel containing the original shared state."""
+
+    content = Text(state) if isinstance(state, str) else JSON.from_data(state)
+    return Panel(content, title="State", title_align="left")
+
+
+def _build_probability_table(
+    question: QuestionSpec, answer: ChoiceAnswer[Enum | bool]
+) -> Table:
+    """Build a table of choices, criteria, and probabilities for one answer."""
+
+    table = Table(box=box.SIMPLE_HEAVY, header_style="bold magenta")
+    table.add_column("")
+    table.add_column("Choice")
+    table.add_column("Criterion")
+    table.add_column("Probability", justify="right")
+
+    for choice, probability in answer.probabilities.items():
+        table.add_row(
+            "✓" if choice == answer.choice else "",
+            _format_answer(choice),
+            _describe_choice(question, choice),
+            f"{probability:.1%}",
+        )
+
+    return table
+
+
+def _describe_choice(question: QuestionSpec, choice: Enum | bool) -> str:
+    """Return the criterion description for a typed choice."""
+
+    key = choice if isinstance(choice, bool) else str(choice.value)
+    return question.criteria[key]
+
+
+def _format_answer(choice: Enum | bool) -> str:
+    """Format a typed answer for terminal output."""
+
+    if isinstance(choice, bool):
+        return str(choice).lower()
+    return str(choice.value)

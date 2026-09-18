@@ -2,7 +2,7 @@
 
 A small experiment in Jev-shaped inference with an ordinary open-source causal
 language model. It evaluates many independent enum or boolean questions in **one batched
-transformer forward pass**, then restricts each row's next-token logits to
+transformer forward pass**, restricts each row's next-token logits to
 single-token labels (`A`, `B`, ...), applies softmax, and maps the distribution
 back to the caller's enum.
 
@@ -44,6 +44,9 @@ uv sync
 uv run jev-at-home judge examples/support.json
 ```
 
+The command prints the original shared state, then each question, its selected
+answer, and a probability table containing every choice and criterion.
+
 Or use standard input:
 
 ```bash
@@ -58,7 +61,7 @@ uv run jev-at-home judge examples/support.json \
   --device mps
 ```
 
-Input supports string enums and actual booleans. Each question has an explicit
+Input supports string enums and booleans. Each question has an explicit
 type discriminator:
 
 ```json
@@ -93,9 +96,8 @@ A boolean question maps its key directly to `true` or `false` in the result:
 ## Design approach
 
 The key sources for the experiment are TypeSafe's
-[Jev announcement](https://typesafe.ai/blog/introducing-system-one-models-and-jev),
-[Jev documentation](https://docs.typesafe.ai/introduction), and the official
-[*How to Design Programs* preface](https://felleisen.org/matthias/HtDP2e/part_preface.html).
+[Jev announcement](https://typesafe.ai/blog/introducing-system-one-models-and-jev) and
+[Jev documentation](https://docs.typesafe.ai/introduction)
 
 ## Test
 
