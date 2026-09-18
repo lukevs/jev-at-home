@@ -108,7 +108,7 @@ def run_typesafe_evals(
     workflows: list[TypeSafeWorkflow],
     *,
     case_limit: int | None = None,
-    batch_size: int = 8,
+    batch_size: int = 1,
     temperature: float = 1.0,
     download_asset: Callable[[TypeSafeWorkflow], str] | None = None,
 ) -> list[TypeSafeEvalResult]:

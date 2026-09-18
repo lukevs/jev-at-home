@@ -161,17 +161,17 @@ numbers. The result also includes the complete level distribution and legend.
 ### Qwen3-4B public example results
 
 The Qwen results below were measured with `Qwen/Qwen3-4B-Instruct-2507`, MPS,
-and the default batch size of eight on an Apple M5 Max. A case is one complete
+and the default batch size of one on an Apple M5 Max. A case is one complete
 workflow example and can contain many questions. Inference time includes model
 calls only; it excludes model loading and downloading the eval assets.
 
-| Workflow | Public cases | Question matches | Reference agreement | Inference/case |
-| --- | ---: | ---: | ---: | ---: |
-| Security incidents | 5 | 30/48 | 62.5% | 3.17 s |
-| Agent trace observability | 5 | 34/52 | 65.4% | 4.92 s |
-| Invoice processing | 5 | 137/184 | 74.5% | 38.95 s |
-| Customer service | 5 | 75/92 | 81.5% | 1.85 s |
-| **Overall** | **20** | **276/376** | **73.4%** | **12.22 s** |
+| Workflow | Public cases | Question matches | Reference agreement | Inference/case | Inference/question |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Security incidents | 5 | 30/48 | 62.5% | 1.34 s | 139.8 ms |
+| Agent trace observability | 5 | 34/52 | 65.4% | 2.04 s | 195.8 ms |
+| Invoice processing | 5 | 137/184 | 74.5% | 14.51 s | 394.4 ms |
+| Customer service | 5 | 75/92 | 81.5% | 1.32 s | 71.5 ms |
+| **Overall** | **20** | **276/376** | **73.4%** | **4.80 s** | **255.4 ms** |
 
 These results measure 376 question instances inside the 20 public showcased
 cases. A match means Qwen's top answer agrees with TypeSafe's separate published

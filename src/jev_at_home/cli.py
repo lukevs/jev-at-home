@@ -96,7 +96,7 @@ def evaluate_typesafe(
             min=1,
             help="Maximum questions per transformer batch to bound memory use.",
         ),
-    ] = 8,
+    ] = 1,
     model: Annotated[
         str, typer.Option(help="Hugging Face causal language model to load.")
     ] = DEFAULT_MODEL,
