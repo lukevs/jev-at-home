@@ -71,32 +71,6 @@ uv sync
 uv run jev-at-home judge examples/support.json
 ```
 
-On Apple Silicon, an optional MLX backend runs the same Qwen3 weights with
-Metal kernels and reuses the prefix cache between suffix batches:
-
-```bash
-uv run --extra mlx jev-at-home judge examples/support.json --backend mlx
-uv run --extra mlx jev-at-home typesafe-eval --backend mlx --batch-size 1
-```
-
-This backend currently supports Qwen3 and keeps the original weight precision;
-it does not quantize or change the prompts. The default Transformers backend
-remains available on CPU, MPS, and CUDA. Both validate each answer label as an
-exact single-token continuation. Prompt token IDs are computed once and reused
-for that validation and inference.
-
-The fastest measured setup on Apple Silicon uses MLX with batch size one and
-the original BF16 weights. Questions run in their original order. MLX
-right-pads suffix batches and reads each question's actual last token, so
-padding cannot affect earlier tokens under causal attention. Each batch width
-gets one prefix cache; suffix storage is reused after resetting its cursor.
-Only the last hidden state per question is projected into vocabulary logits,
-then the declared label tokens are selected and normalized.
-
-The backend explicitly uses Qwen's configured query/key normalization epsilon.
-Floating-point results can still differ between runtimes or batch shapes and
-change close decisions. No quantization or length-based reordering is used.
-
 Or use standard input:
 
 ```bash
@@ -109,6 +83,13 @@ Select another instruct-tuned causal model or force a device with:
 uv run jev-at-home judge examples/support.json \
   --model HuggingFaceTB/SmolLM2-1.7B-Instruct \
   --device mps
+```
+
+On Apple Silicon, an optional MLX backend runs using Metal kernels:
+
+```bash
+uv run --extra mlx jev-at-home judge examples/support.json --backend mlx
+uv run --extra mlx jev-at-home typesafe-eval --backend mlx --batch-size 1
 ```
 
 ## Run TypeSafe's public workflow examples
@@ -137,8 +118,8 @@ question-level agreement with the published two-model consensus.
 
 ## Data
 
-Input supports string enums, booleans, and ordered scores. Each question has an explicit
-type discriminator:
+Data follows TypeSafe's schemas. Input supports string enums, booleans, and ordered scores.
+Each question has an explicit type discriminator:
 
 ```json
 {
@@ -188,14 +169,10 @@ numbers. The result also includes the complete level distribution and legend.
 ### Qwen3-4B public example results
 
 The Qwen results below were measured with `Qwen/Qwen3-4B-Instruct-2507`, the
-optional MLX backend, and batch size one on an Apple M5 Max. Times are medians
+optional MLX backend, and batch size 1 on an Apple M5 Max. Times are medians
 of two runs per workflow. A case is one complete workflow example and can
 contain many questions. Inference time includes prompt preparation and model
 execution; it excludes loading and downloading eval assets.
-These measurements correspond to the retained, best-measured MLX implementation:
-original-order batches, full-vocabulary final-token projection, and reusable
-prefix caches. Later projection and length-bucketing experiments were removed
-after they failed to improve the default batch-size-one results.
 
 | Workflow | Public cases | Question matches | Reference agreement | Inference/case | Inference/question |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -206,43 +183,9 @@ after they failed to improve the default batch-size-one results.
 | **Overall** | **20** | **277/376** | **73.7%** | **7.62 s** | **405.3 ms** |
 
 These results measure 376 question instances inside the 20 public showcased
-cases. A match means Qwen's top answer agrees with TypeSafe's separate published
+cases. A match means Qwen's top answer agrees with TypeSafe's published
 reference consensus. TypeSafe does not publish the complete cases or
 executable policy harness.
-
-### Measured backend comparison
-
-In the same process, using the same BF16 weights, prompts, batch size one, and
-all 20 public cases, MLX was **1.38× faster overall (27% less inference time)**.
-Each workflow ran twice per backend, in Transformers/MLX then MLX/Transformers
-order. Both runtimes used the tokenization improvement described above.
-
-| Backend | Reference agreement | Inference/case | Inference/question |
-| --- | ---: | ---: | ---: |
-| Transformers / MPS | 276/376 (73.4%) | 10.50 s | 558.7 ms |
-| MLX | 277/376 (73.7%) | 7.62 s | 405.3 ms |
-
-Individual decisions differ between runtimes; this is not bit-for-bit equality.
-These are paired measurements from this run, not comparisons against historical
-timings taken under different machine conditions. Batch one remained fastest in
-the MLX invoice sweep of 1, 2, 4, and 8. The implementation uses
-[MLX-LM](https://github.com/ml-explore/mlx-lm) and retains the original weights
-without quantization. See the [raw measurements](benchmarks/m5-max-backends.json)
-for workflow timings, reference counts, and exact dependency versions.
-
-To reproduce a backend comparison on all 20 public cases, loading each model
-once, downloading each asset once, and alternating execution order:
-
-```bash
-uv run --extra mlx python benchmarks/compare_backends.py \
-  --repeats 2 --batch-size 1 --output /tmp/jev-backends.json
-```
-
-The JSON includes every timing and reference count, dependency versions, and
-the sum of per-workflow median times. Add `--workflow invoice_processing --limit 1`
-for a smaller experiment. The timer includes prompt preparation and waits for
-probabilities to reach the CPU; model loading and warm-up are excluded.
-
 
 ## Sources
 
