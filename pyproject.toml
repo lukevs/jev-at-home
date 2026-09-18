@@ -1,13 +1,23 @@
 [project]
 name = "jev-at-home"
 version = "0.1.0"
-description = "Add your description here"
+description = "Batched enum judgments from an open-source causal language model"
 readme = "README.md"
 authors = [
     { name = "Luke Van Seters", email = "lukevanseters@gmail.com" }
 ]
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "pydantic>=2.10",
+    "torch>=2.5",
+    "transformers>=4.46",
+    "typer>=0.15",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3",
+]
 
 [project.scripts]
 jev-at-home = "jev_at_home:main"

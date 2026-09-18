@@ -1,0 +1,34 @@
+{
+  "state": {
+    "customer_tier": "business",
+    "message": "Help! My payouts have been failing for three days."
+  },
+  "questions": {
+    "department": {
+      "type": "enum",
+      "instructions": "Which team should handle this?",
+      "criteria": {
+        "billing": "Payments, invoicing, and refunds",
+        "technical": "Bugs, outages, and integrations",
+        "sales": "Pricing, upgrades, and new accounts"
+      }
+    },
+    "urgency": {
+      "type": "bool",
+      "instructions": "Does this request need urgent attention?",
+      "criteria": {
+        "true": "Time-sensitive or actively blocking",
+        "false": "No urgency is expressed"
+      }
+    },
+    "sentiment": {
+      "type": "enum",
+      "instructions": "What is the customer's sentiment?",
+      "criteria": {
+        "positive": "Pleased or enthusiastic",
+        "neutral": "Neither pleased nor upset",
+        "negative": "Frustrated, worried, or angry"
+      }
+    }
+  }
+}
